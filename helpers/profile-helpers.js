@@ -41,7 +41,23 @@ exports.checkForConsentLogging = function (profile) {
   }
 }
 
-const checkForCmp = function (signatures, utag) {
+exports.checkForPrivacyManager = function (profile) {
+  let foundPrivacyManager = 0
+  try {
+    const extensionIds = Object.keys(profile.customizations)
+    extensionIds.forEach((id) => {
+      if (profile.customizations[id].extType === 'Privacy Manager') {
+        foundPrivacyManager = 1
+      } 
+    })
+    return foundPrivacyManager
+  }
+  catch (e) {
+    return foundPrivacyManager
+  }
+}
+
+const checkForCodeSignatures = function (signatures, utag) {
   signatures = signatures || []
   let foundCmp = 0
   signatures.forEach((snippet) => {
@@ -54,21 +70,21 @@ const checkForCmp = function (signatures, utag) {
 
 exports.checkForUsercentricsInUtag = function (utag) {
   const signatures = ['Usercentrics Vanilla App', 'Usercentrics Browser SDK', 'usercentrics', 'uc_settings']
-  return checkForCmp(signatures, utag)
+  return checkForCodeSignatures(signatures, utag)
 }
 
 exports.checkForOneTrustInUtag = function (utag) {
   const signatures = ['cp.OptanonConsent']
-  return checkForCmp(signatures, utag)
+  return checkForCodeSignatures(signatures, utag)
 }
 
 exports.checkForDidomiInUtag = function (utag) {
-  const signatures = ['didomi_token', 'didomi']
-  return checkForCmp(signatures, utag)
+  const signatures = ['didomi']
+  return checkForCodeSignatures(signatures, utag)
 }
 
 exports.checkForCmpExtensionInUtag = function (utag) {
   const signatures = ['tealiumCmpIntegration']
-  return checkForCmp(signatures, utag)
+  return checkForCodeSignatures(signatures, utag)
 }
 

@@ -57,6 +57,7 @@ function profileChecker({iQ, record, error, account, profile, profileData, resol
       record({
         account, 
         profile,
+        privacy_manager_in_prod: profileHelper.checkForPrivacyManager(prodProfileData),
         consent_prompt_in_prod: profileHelper.checkForConsentPrompt(prodProfileData),
         consent_preferences_in_prod: profileHelper.checkForConsentPreferences(prodProfileData),
         consent_logging_in_prod: profileHelper.checkForConsentLogging(prodProfileData),
@@ -85,6 +86,7 @@ reportHandler({
     logName : "consentManagementView",
     checkProfile : profileChecker,
     dbDataTypes : {
+      privacy_manager_in_prod: DATABASE_TYPES.INTEGER,
       consent_prompt_in_prod: DATABASE_TYPES.INTEGER,
       consent_preferences_in_prod: DATABASE_TYPES.INTEGER,
       consent_logging_in_prod: DATABASE_TYPES.INTEGER,
@@ -101,7 +103,7 @@ reportHandler({
     },
     getProfileData: true,
     dropDB: true,
-    //accountList: ['pro7', 'axelspringer', 'stepstone']
-    //accountProfileList: [{account: 'services-caleb', profile: 'fashionid-staging'}]
+    //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg']
+    accountProfileList: [{account: 'lbg', profile: 'main'}]
   }
 );
