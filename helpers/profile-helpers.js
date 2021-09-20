@@ -40,3 +40,35 @@ exports.checkForConsentLogging = function (profile) {
     return 0
   }
 }
+
+const checkForCmp = function (signatures, utag) {
+  signatures = signatures || []
+  let foundCmp = 0
+  signatures.forEach((snippet) => {
+    if (typeof snippet === 'string' && snippet !== '' && utag && utag.contents && utag.contents.data.indexOf(snippet) !== -1) {
+      foundCmp = 1
+    }
+  })
+  return foundCmp
+}
+
+exports.checkForUsercentricsInUtag = function (utag) {
+  const signatures = ['Usercentrics Vanilla App', 'Usercentrics Browser SDK', 'usercentrics', 'uc_settings']
+  return checkForCmp(signatures, utag)
+}
+
+exports.checkForOneTrustInUtag = function (utag) {
+  const signatures = ['cp.OptanonConsent']
+  return checkForCmp(signatures, utag)
+}
+
+exports.checkForDidomiInUtag = function (utag) {
+  const signatures = ['didomi_token', 'didomi']
+  return checkForCmp(signatures, utag)
+}
+
+exports.checkForCmpExtensionInUtag = function (utag) {
+  const signatures = ['tealiumCmpIntegration']
+  return checkForCmp(signatures, utag)
+}
+

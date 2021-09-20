@@ -19,6 +19,7 @@
   "dependencies": {
     "axios": "^0.21.4",
     "dotenv": "^10.0.0",
+    "fs-extra": "^10.0.0",
     "magic-metrics-tool": "https://solutions.tealium.net/hosted/abrowning/magic-metrics-tool-0.1.1.tgz",
     "qs": "^6.10.1",
     "update-dotenv": "^1.1.1"

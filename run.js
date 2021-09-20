@@ -8,7 +8,10 @@ const {
 
 const tealiumHelper = require('./helpers/tealium-helpers.js')
 const profileHelper = require('./helpers/profile-helpers.js');
-const { checkForConsentLogging } = require("./helpers/profile-helpers.js");
+
+require('dotenv').config()
+
+tealiumHelper.resetStateFile() // reset on each run
 
 function profileChecker({iQ, record, error, account, profile, profileData, resolve, reject}){
   try {
@@ -57,6 +60,12 @@ function profileChecker({iQ, record, error, account, profile, profileData, resol
         consent_prompt_in_prod: profileHelper.checkForConsentPrompt(prodProfileData),
         consent_preferences_in_prod: profileHelper.checkForConsentPreferences(prodProfileData),
         consent_logging_in_prod: profileHelper.checkForConsentLogging(prodProfileData),
+        cmp_extension: profileHelper.checkForCmpExtensionInUtag(utag),
+        cmp_usercentrics: profileHelper.checkForUsercentricsInUtag(utag),
+        cmp_onetrust: profileHelper.checkForOneTrustInUtag(utag),
+        cmp_didomi: profileHelper.checkForDidomiInUtag(utag),
+        visits_past_month: volumesOneMonth.visit || 0,
+        visits_past_six_months: volumesSixMonths.visit || 0,
         loader_past_month: volumesOneMonth.loader,
         loader_past_six_months: volumesSixMonths.loader,
         prod_version: prodVersion,
@@ -79,6 +88,12 @@ reportHandler({
       consent_prompt_in_prod: DATABASE_TYPES.INTEGER,
       consent_preferences_in_prod: DATABASE_TYPES.INTEGER,
       consent_logging_in_prod: DATABASE_TYPES.INTEGER,
+      cmp_extension: DATABASE_TYPES.INTEGER,
+      cmp_usercentrics: DATABASE_TYPES.INTEGER,
+      cmp_onetrust: DATABASE_TYPES.INTEGER,
+      cmp_didomi: DATABASE_TYPES.INTEGER,
+      visits_past_month: DATABASE_TYPES.INTEGER,
+      visits_past_six_months: DATABASE_TYPES.INTEGER,
       loader_past_month: DATABASE_TYPES.INTEGER,
       loader_past_six_months: DATABASE_TYPES.INTEGER,
       prod_version: DATABASE_TYPES.TEXT,
@@ -86,7 +101,7 @@ reportHandler({
     },
     getProfileData: true,
     dropDB: true,
-    accountList: ['services-caleb']
+    //accountList: ['pro7', 'axelspringer', 'stepstone']
     //accountProfileList: [{account: 'services-caleb', profile: 'fashionid-staging'}]
   }
 );
