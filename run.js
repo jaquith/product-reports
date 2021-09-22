@@ -13,6 +13,54 @@ require('dotenv').config()
 
 tealiumHelper.resetStateFile() // reset on each run
 
+let authTokens
+
+console.log('Getting auth...')
+tealiumHelper.getValidTealiumUtkAndJsessionId('services-caleb', 'main')
+.then((tokens) => {
+  authTokens = tokens
+  console.log('Running!')
+  reportHandler({
+    logName : "consentManagementView",
+    checkProfile : profileChecker,
+    dbDataTypes : {
+      prod_version: DATABASE_TYPES.TEXT,
+  
+      privacy_manager: DATABASE_TYPES.INTEGER,
+  
+      ccpa: DATABASE_TYPES.INTEGER,
+      ccpa_load_rule: DATABASE_TYPES.TEXT,
+  
+      consent_prompt: DATABASE_TYPES.INTEGER,
+      consent_preferences: DATABASE_TYPES.INTEGER,
+      consent_manager_load_rule: DATABASE_TYPES.TEXT,
+      consent_logging: DATABASE_TYPES.INTEGER,
+  
+      cmp_extension: DATABASE_TYPES.INTEGER,
+      cmp_usercentrics: DATABASE_TYPES.INTEGER,
+      cmp_onetrust: DATABASE_TYPES.INTEGER,
+      cmp_didomi: DATABASE_TYPES.INTEGER,
+  
+      mobile_publishing: DATABASE_TYPES.INTEGER,
+      mobile_to_loader_ratio_past_month: DATABASE_TYPES.REAL,
+      mobile_to_loader_ratio_past_six_months: DATABASE_TYPES.REAL,
+  
+      visits_past_month: DATABASE_TYPES.INTEGER,
+      visits_past_six_months: DATABASE_TYPES.INTEGER,
+      loader_past_month: DATABASE_TYPES.INTEGER,
+      loader_past_six_months: DATABASE_TYPES.INTEGER,
+      mobile_past_month: DATABASE_TYPES.INTEGER,
+      mobile_past_six_months: DATABASE_TYPES.INTEGER,
+  
+      tag_count: DATABASE_TYPES.INTEGER
+    },
+    getProfileData: true,
+    dropDB: true,
+    accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
+    //accountProfileList: [{account: 'services-caleb', profile: 'mobile-html'}]
+  })
+})
+
 function profileChecker({iQ, record, error, account, profile, profileData, resolve, reject}){
   try {
     // we only care about the latest production profile, NOT the latest profile save (which is what we start with)
@@ -28,14 +76,16 @@ function profileChecker({iQ, record, error, account, profile, profileData, resol
       }
     }
 
-    const arrayOfPromises = [
-      tealiumHelper.getUtagFileFromCdn(account, profile, 'prod'),
+    let arrayOfPromises = [
+      tealiumHelper.getUtagFileFromCdn(account, profile,'prod'),
       tealiumHelper.getUtagSyncFileFromCdn(account, profile, 'prod'),
       tealiumHelper.getMobileHtmlFileFromCdn(account, profile, 'prod'),
-      tealiumHelper.getTiqProfileData(account, profile, prodRevision),
-      tealiumHelper.getVolumesForRollingPeriod(account, profile, 30),
-      tealiumHelper.getVolumesForRollingPeriod(account, profile, 180)
+      tealiumHelper.getTiqProfileData(account, profile, authTokens.utk, authTokens.jsessionId, prodRevision),
+      tealiumHelper.getVolumesForRollingPeriod(account, profile, authTokens.utk, authTokens.jsessionId, 30),
+      tealiumHelper.getVolumesForRollingPeriod(account, profile, authTokens.utk, authTokens.jsessionId, 180)
     ]
+
+    // make sure we have a valid UTK and JSESSIONID first
 
     Promise.all(arrayOfPromises)
     .catch(function(err) {
@@ -57,19 +107,34 @@ function profileChecker({iQ, record, error, account, profile, profileData, resol
       record({
         account, 
         profile,
-        privacy_manager_in_prod: profileHelper.checkForPrivacyManager(prodProfileData),
-        consent_prompt_in_prod: profileHelper.checkForConsentPrompt(prodProfileData),
-        consent_preferences_in_prod: profileHelper.checkForConsentPreferences(prodProfileData),
-        consent_logging_in_prod: profileHelper.checkForConsentLogging(prodProfileData),
+        prod_version: prodVersion,
+
+        privacy_manager: profileHelper.checkForPrivacyManager(prodProfileData),
+
+        ccpa: profileHelper.checkForCcpa(prodProfileData),
+        ccpa_load_rule: profileHelper.getCcpaLoadRule(prodProfileData),
+
+        consent_prompt: profileHelper.checkForConsentPrompt(prodProfileData),
+        consent_preferences: profileHelper.checkForConsentPreferences(prodProfileData),
+        consent_logging: profileHelper.checkForConsentLogging(prodProfileData),
+        consent_manager_load_rule: profileHelper.getConsentManagerLoadRule(prodProfileData),
+
         cmp_extension: profileHelper.checkForCmpExtensionInUtag(utag),
         cmp_usercentrics: profileHelper.checkForUsercentricsInUtag(utag),
         cmp_onetrust: profileHelper.checkForOneTrustInUtag(utag),
         cmp_didomi: profileHelper.checkForDidomiInUtag(utag),
-        visits_past_month: volumesOneMonth.visit || 0,
-        visits_past_six_months: volumesSixMonths.visit || 0,
+
+        mobile_publishing: profileHelper.checkForMobilePublishing(profile),
+        mobile_to_loader_ratio_past_month: volumesOneMonth.loader > 0 ? volumesOneMonth.mobile / volumesOneMonth.loader : 0,
+        mobile_to_loader_ratio_past_six_months: volumesSixMonths.loader > 0 ? volumesSixMonths.mobile / volumesSixMonths.loader : 0,
+
+        visits_past_month: volumesOneMonth.visit,
+        visits_past_six_months: volumesSixMonths.visit,
         loader_past_month: volumesOneMonth.loader,
         loader_past_six_months: volumesSixMonths.loader,
-        prod_version: prodVersion,
+        mobile_past_month: volumesOneMonth.mobile,
+        mobile_past_six_months: volumesSixMonths.mobile,
+
         tag_count : size(prodProfileData.manage),
       });
       
@@ -81,29 +146,3 @@ function profileChecker({iQ, record, error, account, profile, profileData, resol
   }
   
 }
-
-reportHandler({
-    logName : "consentManagementView",
-    checkProfile : profileChecker,
-    dbDataTypes : {
-      privacy_manager_in_prod: DATABASE_TYPES.INTEGER,
-      consent_prompt_in_prod: DATABASE_TYPES.INTEGER,
-      consent_preferences_in_prod: DATABASE_TYPES.INTEGER,
-      consent_logging_in_prod: DATABASE_TYPES.INTEGER,
-      cmp_extension: DATABASE_TYPES.INTEGER,
-      cmp_usercentrics: DATABASE_TYPES.INTEGER,
-      cmp_onetrust: DATABASE_TYPES.INTEGER,
-      cmp_didomi: DATABASE_TYPES.INTEGER,
-      visits_past_month: DATABASE_TYPES.INTEGER,
-      visits_past_six_months: DATABASE_TYPES.INTEGER,
-      loader_past_month: DATABASE_TYPES.INTEGER,
-      loader_past_six_months: DATABASE_TYPES.INTEGER,
-      prod_version: DATABASE_TYPES.TEXT,
-      tag_count: DATABASE_TYPES.INTEGER
-    },
-    getProfileData: true,
-    dropDB: true,
-    //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg']
-    accountProfileList: [{account: 'lbg', profile: 'main'}]
-  }
-);

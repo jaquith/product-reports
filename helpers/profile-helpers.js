@@ -15,6 +15,34 @@ exports.checkForConsentPrompt = function (profile) {
 }
 
 // return 0 or 1 (boolean) for db compatibility
+exports.checkForCcpa = function (profile) {
+  try {
+    const ccpaSettings = profile.privacy_management.doNotSell
+    if (ccpaSettings.isEnabled === 'true' && ccpaSettings.selectedTargets.prod === 'true') {
+      return 1
+    } 
+    return 0
+  }
+  catch (e) {
+    return 0
+  }
+}
+
+// return the load rule string ()
+exports.getCcpaLoadRule = function (profile) {
+  try {
+    const ccpaSettings = profile.privacy_management.doNotSell
+    if (this.checkForCcpa(profile) === 1) {
+      return ccpaSettings.loadrule
+    } 
+    return ''
+  }
+  catch (e) {
+    return ''
+  }
+}
+
+// return 0 or 1 (boolean) for db compatibility
 exports.checkForConsentPreferences = function (profile) {
   try {
     const promptSettings = profile.privacy_management.preferences
@@ -41,6 +69,20 @@ exports.checkForConsentLogging = function (profile) {
   }
 }
 
+// return the load rule string ()
+exports.getConsentManagerLoadRule = function (profile) {
+  try {
+    const settings = profile.privacy_management.explicit
+    if (this.checkForConsentPreferences(profile) === 1 || this.checkForConsentPrompt(profile) === 1) {
+      return settings.loadrule
+    } 
+    return ''
+  }
+  catch (e) {
+    return ''
+  }
+}
+
 exports.checkForPrivacyManager = function (profile) {
   let foundPrivacyManager = 0
   try {
@@ -48,12 +90,22 @@ exports.checkForPrivacyManager = function (profile) {
     extensionIds.forEach((id) => {
       if (profile.customizations[id].extType === 'Privacy Manager') {
         foundPrivacyManager = 1
-      } 
+      }
     })
     return foundPrivacyManager
   }
   catch (e) {
     return foundPrivacyManager
+  }
+}
+
+
+exports.checkForMobilePublishing = function (profile) {
+  try {
+    if (profile.publish._mobile['5']._is_enabled === 'true') return 1
+  }
+  catch (e) {
+    return 0
   }
 }
 
@@ -68,8 +120,9 @@ const checkForCodeSignatures = function (signatures, utag) {
   return foundCmp
 }
 
+
 exports.checkForUsercentricsInUtag = function (utag) {
-  const signatures = ['Usercentrics Vanilla App', 'Usercentrics Browser SDK', 'usercentrics', 'uc_settings']
+  const signatures = ['usercentrics', 'uc_settings']
   return checkForCodeSignatures(signatures, utag)
 }
 
@@ -84,7 +137,7 @@ exports.checkForDidomiInUtag = function (utag) {
 }
 
 exports.checkForCmpExtensionInUtag = function (utag) {
-  const signatures = ['tealiumCmpIntegration']
+  const signatures = ['tealiumCmpIntegration', 'Usercentrics Vanilla App', 'Usercentrics Browser SDK']
   return checkForCodeSignatures(signatures, utag)
 }
 
