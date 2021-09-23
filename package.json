@@ -4,7 +4,8 @@
   "description": "A space to hack together specific lists of Tealium customers",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "standard --fix"
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,7 @@
     "fs-extra": "^10.0.0",
     "magic-metrics-tool": "https://solutions.tealium.net/hosted/abrowning/magic-metrics-tool-0.1.1.tgz",
     "qs": "^6.10.1",
+    "standard": "^16.0.3",
     "update-dotenv": "^1.1.1"
   }
 }
