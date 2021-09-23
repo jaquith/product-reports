@@ -1,6 +1,5 @@
 'use strict'
 
-
 const axios = require('axios')
 const tealiumCdnRequests = require('../helpers/tealium-public-request-generator.js')
 
