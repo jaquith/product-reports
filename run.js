@@ -49,7 +49,7 @@ reportHandler({
   retryErrors: false,
   dropDB: true
   //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
-  //accountProfileList: [{ account: '3m', profile: 'bcom-da-dk' }]
+  //accountProfileList: [{ account: 'lbg', profile: 'main' }]
 })
 
 function profileChecker ({ iQ, record, error, account, profile, profileData, resolve, reject }) {

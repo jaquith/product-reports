@@ -127,7 +127,7 @@ exports.checkForPrivacyManager = function (profile) {
   let foundPrivacyManager = 0
   const extensionIds = Object.keys(profile.customizations || {})
   extensionIds.forEach((id) => {
-    if (profile.customizations[id].extType === 'Privacy Manager' && profile.status === 'active') {
+    if (profile.customizations[id].extType === 'Privacy Manager' && profile.customizations[id].status === 'active') {
       foundPrivacyManager = 1
     }
   })
