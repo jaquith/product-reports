@@ -26,9 +26,8 @@ reportHandler({
     consent_logging: DATABASE_TYPES.INTEGER,
 
     cmp_extension: DATABASE_TYPES.INTEGER,
-    cmp_usercentrics: DATABASE_TYPES.INTEGER,
-    cmp_onetrust: DATABASE_TYPES.INTEGER,
-    cmp_didomi: DATABASE_TYPES.INTEGER,
+    cmp_detected: DATABASE_TYPES.TEXT,
+    all_consent_tools: DATABASE_TYPES.TEXT,
 
     mobile_publishing: DATABASE_TYPES.INTEGER,
     mobile_to_loader_ratio_past_month: DATABASE_TYPES.REAL,
@@ -41,13 +40,16 @@ reportHandler({
     mobile_past_month: DATABASE_TYPES.INTEGER,
     mobile_past_six_months: DATABASE_TYPES.INTEGER,
 
+    volume_per_visit_one_month: DATABASE_TYPES.REAL,
+    volume_per_visit_six_months: DATABASE_TYPES.REAL,
+
     tag_count: DATABASE_TYPES.INTEGER
   },
   getProfileData: true,
   retryErrors: false,
-  dropDB: true,
-  // accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
-  accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
+  dropDB: true
+  //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
+  //accountProfileList: [{ account: '3m', profile: 'bcom-da-dk' }]
 })
 
 function profileChecker ({ iQ, record, error, account, profile, profileData, resolve, reject }) {
@@ -85,26 +87,37 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
 
         const prodVersion = prodProfileData && prodProfileData.settings && prodProfileData.settings.revision
 
+        const detectedCmps = profileHelper.getDetectedCmps(utag)
+        const foundPrivacyManager = profileHelper.checkForPrivacyManager(prodProfileData)
+        const foundConsentPrompt = profileHelper.checkForConsentPrompt(prodProfileData)
+        const foundConsentPreferences = profileHelper.checkForConsentPreferences(prodProfileData)
+        const foundConsentManager = foundConsentPrompt || foundConsentPreferences
+
+        const allToolsArray = []
+        if (foundPrivacyManager) allToolsArray.push('teal_pm')
+        if (foundConsentManager) allToolsArray.push('teal_cm')
+        if (detectedCmps) allToolsArray.push(detectedCmps)
+        const allTools = allToolsArray.join(' + ')
+
         // we only care about prod for now
         record({
           account,
           profile,
           prod_version: prodVersion,
-
-          privacy_manager: profileHelper.checkForPrivacyManager(prodProfileData),
+          privacy_manager: foundPrivacyManager,
 
           ccpa: profileHelper.checkForCcpa(prodProfileData),
           ccpa_load_rule: profileHelper.getCcpaLoadRule(prodProfileData),
 
-          consent_prompt: profileHelper.checkForConsentPrompt(prodProfileData),
-          consent_preferences: profileHelper.checkForConsentPreferences(prodProfileData),
+          consent_prompt: foundConsentPrompt,
+          consent_preferences: foundConsentPreferences,
           consent_logging: profileHelper.checkForConsentLogging(prodProfileData),
+          consent_manager: foundConsentManager,
           consent_manager_load_rule: profileHelper.getConsentManagerLoadRule(prodProfileData),
 
           cmp_extension: profileHelper.checkForCmpExtensionInUtag(utag),
-          cmp_usercentrics: profileHelper.checkForUsercentricsInUtag(utag),
-          cmp_onetrust: profileHelper.checkForOneTrustInUtag(utag),
-          cmp_didomi: profileHelper.checkForDidomiInUtag(utag),
+          cmp_detected: detectedCmps,
+          all_consent_tools: allTools,
 
           mobile_publishing: profileHelper.checkForMobilePublishing(prodProfileData),
           mobile_to_loader_ratio_past_month: volumesOneMonth.loader > 0 ? volumesOneMonth.mobile / volumesOneMonth.loader : 0,
@@ -116,6 +129,9 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
           loader_past_six_months: volumesSixMonths.loader,
           mobile_past_month: volumesOneMonth.mobile,
           mobile_past_six_months: volumesSixMonths.mobile,
+
+          volume_per_visit_one_month: (volumesOneMonth.loader + volumesOneMonth.mobile) / (volumesOneMonth.visit || 1),
+          volume_per_visit_six_months: (volumesSixMonths.loader + volumesSixMonths.mobile) / (volumesSixMonths.visit || 1),
 
           tag_count: size(prodProfileData.manage)
         })
