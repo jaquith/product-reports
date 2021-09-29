@@ -46,8 +46,8 @@ reportHandler({
     tag_count: DATABASE_TYPES.INTEGER
   },
   getProfileData: true,
-  retryErrors: false,
-  dropDB: true
+  retryErrors: true,
+  dropDB: false
   //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
   //accountProfileList: [{ account: 'lbg', profile: 'main' }]
 })
@@ -94,9 +94,9 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
         const foundConsentManager = foundConsentPrompt || foundConsentPreferences
 
         const allToolsArray = []
+        if (detectedCmps) allToolsArray.push(detectedCmps)
         if (foundPrivacyManager) allToolsArray.push('teal_pm')
         if (foundConsentManager) allToolsArray.push('teal_cm')
-        if (detectedCmps) allToolsArray.push(detectedCmps)
         const allTools = allToolsArray.join(' + ')
 
         // we only care about prod for now
