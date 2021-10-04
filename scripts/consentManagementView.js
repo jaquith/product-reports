@@ -48,8 +48,8 @@ reportHandler({
   getProfileData: true,
   retryErrors: true,
   dropDB: false
-  //accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
-  //accountProfileList: [{ account: 'lbg', profile: 'main' }]
+  // accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
+  // accountProfileList: [{ account: 'lbg', profile: 'main' }]
 })
 
 function profileChecker ({ iQ, record, error, account, profile, profileData, resolve, reject }) {
