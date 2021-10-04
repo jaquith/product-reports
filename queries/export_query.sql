@@ -3,47 +3,52 @@ SELECT account
 				 , profile
 				 , (account || '/' || profile) AS account_and_profile
 				 , prod_version
-				 , privacy_manager
-				 , ccpa
+				 , all_consent_tools
 				 , ccpa_load_rule
+				 , consent_manager_load_rule
+				 , CASE
+						WHEN (cmp_detected IS NULL OR cmp_detected = '') AND (consent_preferences = 1 OR consent_prompt = 1)
+						   THEN 'teal_cm'
+						WHEN (cmp_detected IS NULL OR cmp_detected = '') AND (privacy_manager = 1)
+						   THEN 'teal_pm'
+						WHEN cmp_detected IS NOT NULL AND cmp_detected != ''
+						   THEN 'cmp'
+						   ELSE 'none_found'
+					   END AS consent_solution_summary
+			    , cmp_detected
+			    , privacy_manager
+				 , ccpa
 				 , consent_prompt
 				 , consent_preferences
-				 , consent_manager_load_rule
 				 , consent_logging
 				 , cmp_extension
+
+				 , CASE
+						WHEN (cmp_detected IS NULL OR cmp_detected = '') AND (consent_preferences = 1 OR consent_prompt = 1)
+						   THEN 1
+						   ELSE 0
+					   END AS cm_alone
+				 , CASE
+						WHEN (cmp_detected IS NULL OR cmp_detected = '') AND (privacy_manager = 1)
+						   THEN 1
+						   ELSE 0
+					   END AS pm_alone
+				 , CASE
+						WHEN cmp_detected IS NOT NULL AND cmp_detected != ''
+						   THEN 1
+						   ELSE 0
+					   END AS has_cmp
+					   
+				 , CASE
+							WHEN mobile_publishing = 1 AND (mobile_to_loader_ratio_past_month > 1 OR mobile_to_loader_ratio_past_six_months >1)
+							   THEN 1
+							   ELSE 0
+					   END AS likely_mobile_profile
 				 , CASE
 						WHEN consent_preferences = 1 OR consent_prompt = 1
 						   THEN 1
 						   ELSE 0
-					   END AS consent_manager
-				 , CASE
-						WHEN cmp_consentmanagernet = 1
-						   THEN 'consentmanagernet'
-						 WHEN cmp_cookiebot = 1
-						   THEN 'cookiebot'
-						WHEN cmp_didomi = 1
-						   THEN 'didomi'
-						WHEN cmp_evidon = 1
-						   THEN 'evidon'
-						WHEN cmp_iubenda = 1
-						   THEN 'iubenda'
-						WHEN cmp_liveramp = 1
-						   THEN 'liveramp'
-						WHEN cmp_osano = 1
-						   THEN 'osano'
-						WHEN cmp_quantcast = 1
-						   THEN 'quantcast'
-						WHEN cmp_sourcepoint = 1
-						   THEN 'sourcepoint'
-						WHEN cmp_trustarc = 1
-						   THEN 'trustarc'
-						WHEN cmp_usercentrics = 1
-						   THEN 'usercentrics'
-						 WHEN cmp_onetrust = 1 /* onetrust has false positives for some reason with cookiebot, evidon and osano, so it needs to be last on the list */
-						   THEN 'onetrust'
-						   ELSE ''
-				   END AS other_cmp
-			     , (cmp_consentmanagernet + cmp_cookiebot + cmp_didomi + cmp_evidon + cmp_iubenda + cmp_liveramp + cmp_onetrust + cmp_osano + cmp_quantcast + cmp_sourcepoint + cmp_trustarc + cmp_usercentrics) AS cmp_count
+					   END AS has_consent_manager
 				 , CASE
 							WHEN mobile_publishing = 1 AND (mobile_to_loader_ratio_past_month > 1 OR mobile_to_loader_ratio_past_six_months >1)
 							   THEN 1
@@ -56,7 +61,8 @@ SELECT account
 				 , visits_past_month
 				 , loader_past_month
 				 , mobile_past_month
-
+				 , volume_per_visit_one_month
+				 , volume_per_visit_six_months
 FROM log
 
 WHERE 
