@@ -6,8 +6,8 @@ const {
   utils: { size }
 } = require('magic-metrics-tool')
 
-const tealiumHelper = require('./helpers/tealium-helpers.js')
-const profileHelper = require('./helpers/profile-helpers.js')
+const tealiumHelper = require('../helpers/tealium-helpers.js')
+const profileHelper = require('../helpers/profile-helpers.js')
 
 reportHandler({
   logName: 'consentManagementView',
@@ -46,9 +46,9 @@ reportHandler({
     tag_count: DATABASE_TYPES.INTEGER
   },
   getProfileData: true,
-  retryErrors: true,
-  dropDB: false
-  // accountList: ['pro7', 'axelspringer', 'stepstone', 'lbg', 'mbcc-group', 'basf', 'immoweltgroup', 'immobilienscout', '1und1', '3m', 'accenture', 'zweipunkt', 'fashionid', 'elililly']
+  retryErrors: false,
+  dropDB: true,
+  accountList: ['sainsburys']
   // accountProfileList: [{ account: 'lbg', profile: 'main' }]
 })
 

@@ -1,6 +1,7 @@
 'use strict'
 
 const cmps = {
+  admiral: ['admiral'],
   adopt: ['AdoptConsent'],
   adzapier: ['az-cookie-consent'],
   axeptio: ['axeptio_'],
@@ -41,11 +42,13 @@ const cmps = {
   usercentrics: ['usercentrics', 'uc_settings']
 }
 
-const checkForCodeSignatures = function (signatures, utag) {
+const checkForCodeSignatures = function (signatures, string) {
   signatures = signatures || []
   let foundCmp = 0
   signatures.forEach((snippet) => {
-    if (typeof snippet === 'string' && snippet !== '' && utag && utag.contents && utag.contents.data.indexOf(snippet) !== -1) {
+    const reMid = new RegExp(`^.*[^A-Za-z]+${snippet}`, 'm')
+    const reStart = new RegExp(`^${snippet}`, 'm')
+    if (typeof snippet === 'string' && snippet !== '' && typeof string === 'string' && reMid.test(string) || reStart.test(string)) {
       foundCmp = 1
     }
   })
@@ -56,7 +59,8 @@ exports.getDetectedCmps = function (utag) {
   const cmpOutput = []
   Object.keys(cmps).forEach((name) => {
     const signatures = cmps[name]
-    if (checkForCodeSignatures(signatures, utag)) {
+    const utagString = utag && utag.contents && utag.contents.data
+    if (typeof utagString === "string" && checkForCodeSignatures(signatures, utagString)) {
       cmpOutput.push(name)
     }
   })
