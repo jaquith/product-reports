@@ -24,7 +24,8 @@ const cmps = {
   ketch: ['ketchcdn.com/web/v1/consent/', '_swb'],
   legalmonster: ['legalmonster'],
   liveramp: ['cconsent-'],
-  onetrust: ['OptanonConsent'],
+  oil: ['oil_', 'oil-'],
+  onetrust: ['OptanonConsent', 'OptanonActiveGroups'],
   osano: ['osano'],
   pandectes: ['_pandectes_'],
   piwikpro: ['ppms_privacy_'],
@@ -43,11 +44,16 @@ const cmps = {
 }
 
 const checkForCodeSignatures = function (signatures, string) {
+  function escapeRegExp(text) {
+    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+  }
   signatures = signatures || []
   let foundCmp = 0
   signatures.forEach((snippet) => {
-    const reMid = new RegExp(`^.*[^A-Za-z]+${snippet}`, 'm')
-    const reStart = new RegExp(`^${snippet}`, 'm')
+    const escapedSnippetForRegExp = escapeRegExp(snippet)
+    // needs to be multiline to work correctly on the utag string
+    const reMid = new RegExp(`^.*[^A-Za-z]+${escapedSnippetForRegExp}`, 'm')
+    const reStart = new RegExp(`^${escapedSnippetForRegExp}`, 'm')
     if (typeof snippet === 'string' && snippet !== '' && typeof string === 'string' && reMid.test(string) || reStart.test(string)) {
       foundCmp = 1
     }

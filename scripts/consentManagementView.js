@@ -47,9 +47,9 @@ reportHandler({
   },
   getProfileData: true,
   retryErrors: false,
-  dropDB: true,
-  accountList: ['sainsburys']
-  // accountProfileList: [{ account: 'lbg', profile: 'main' }]
+  dropDB: true
+  //accountList: ['stepstone','active', 'pro7', '1und1', 'lastminutegroup']
+  // accountProfileList: [{ account: 'pro7', profile: 'verivox20-de' }]
 })
 
 function profileChecker ({ iQ, record, error, account, profile, profileData, resolve, reject }) {
