@@ -46,8 +46,8 @@ reportHandler({
     tag_count: DATABASE_TYPES.INTEGER
   },
   getProfileData: true,
-  retryErrors: false,
-  dropDB: true
+  retryErrors: true,
+  dropDB: false
   //accountList: ['stepstone','active', 'pro7', '1und1', 'lastminutegroup']
   // accountProfileList: [{ account: 'pro7', profile: 'verivox20-de' }]
 })
