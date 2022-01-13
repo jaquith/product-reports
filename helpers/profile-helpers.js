@@ -35,7 +35,7 @@ const cmps = {
   quantcast: ['addtl_consent'],
   secureprivacy: ['sp_consent'],
   securiti: ['__privaci_cookie'],
-  sourcepoint: ['_sp_v1_'],
+  sourcepoint: ['_sp_v1_', '_sp_'],
   termly: ['TERMLY_API_CACHE', 'termly'],
   truendo: ['truendo_cmp'],
   trustarc: ['ccmapi_cookie_privacy'],
@@ -152,6 +152,11 @@ exports.checkForMobilePublishing = function (profile) {
 }
 
 exports.checkForCmpExtensionInUtag = function (utag) {
-  const signatures = ['tealiumCmpIntegration', 'Usercentrics Vanilla App', 'Usercentrics Browser SDK']
-  return checkForCodeSignatures(signatures, utag)
+  const signatures = ['tealiumCmpIntegration']
+  const utagString = utag && utag.contents && utag.contents.data
+  return checkForCodeSignatures(signatures, utagString)
+}
+
+exports.getDaysSinceVersion = function (versionString) {
+  return versionString
 }
