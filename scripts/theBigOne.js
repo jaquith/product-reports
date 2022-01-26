@@ -170,8 +170,11 @@ reportHandler({
         tag_count_tealium_generic_tag: DATABASE_TYPES.INTEGER,
         tag_count_tealium_pixel_iframe_container: DATABASE_TYPES.INTEGER,
 
+        tag_count_unique_templates: DATABASE_TYPES.INTEGER,
         tag_count_total: DATABASE_TYPES.INTEGER,
-        tag_count_from_library: DATABASE_TYPES.INTEGER
+        tag_count_from_library: DATABASE_TYPES.INTEGER,
+
+        top_three_tags_with_percentages: DATABASE_TYPES.TEXT
 
         // iab_tcf_2: DATABASE_TYPES.INTEGER,
 
@@ -388,8 +391,11 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         tag_count_tealium_generic_tag: tagCounter['20067'] || 0,
         tag_count_tealium_pixel_iframe_container: tagCounter['20011'] || 0,
 
+        tag_count_unique_templates: tagCounter.tag_template_count || 0,
         tag_count_total: tagCounter.total || 0,
-        tag_count_from_library: tagCounter.from_library || 0
+        tag_count_from_library: tagCounter.from_library || 0,
+
+        top_three_tags_with_percentages: JSON.stringify(tagCounter.top_three_tags_with_percentages)
 
         // iab_tcf_2: foundIabTcf2,
 

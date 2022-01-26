@@ -100,6 +100,7 @@ exports.checkForProdCdh = function (oneMonth, sixMonths) {
 exports.countActiveTagsByTemplateId = function (profileData) {
   const allTagIds = Object.keys(profileData.manage || {})
   const tagCounter = {}
+  const names = {}
   tagCounter.total = 0
   tagCounter.from_library = 0
   allTagIds.forEach(function (id) {
@@ -109,12 +110,33 @@ exports.countActiveTagsByTemplateId = function (profileData) {
       tagCounter[tagInfo.tag_id] = tagCounter[tagInfo.tag_id] || 0
       tagCounter.total++
       tagCounter[tagInfo.tag_id]++
-
+      names[tagInfo.tag_id] = tagInfo.tag_name
       if (tagInfo.settings && typeof tagInfo.settings.library === 'string') {
         tagCounter.from_library++
       }
     }
   })
+  // to get an idea of how many tags customers are using
+
+  const justTagsNoTotals = JSON.parse(JSON.stringify(tagCounter))
+  delete justTagsNoTotals.total
+  delete justTagsNoTotals.from_library
+
+  tagCounter.tag_template_count = Object.keys(tagCounter).length - 2 // subtract the total and library counter
+
+  const pickHighest = (obj, num = 1) => {
+    const requiredObj = {}
+    Object.keys(obj).sort((a, b) => obj[b] - obj[a])
+                    .forEach((key, ind) => {
+      if (ind < num) {
+        requiredObj[names[key]] = Math.round((obj[key] / tagCounter.total) * 100) + '%'
+      }
+    })
+    return requiredObj
+  }
+
+  tagCounter.top_three_tags_with_percentages = pickHighest(justTagsNoTotals, 3) || {}
+
   return tagCounter
 }
 
