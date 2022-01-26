@@ -43,13 +43,16 @@ reportHandler({
     volume_per_visit_one_month: DATABASE_TYPES.REAL,
     volume_per_visit_six_months: DATABASE_TYPES.REAL,
 
-    tag_count: DATABASE_TYPES.INTEGER
+    tag_count: DATABASE_TYPES.INTEGER,
+    days_since_prod_publish: DATABASE_TYPES.REAL,
+
+    iab_tcf_2: DATABASE_TYPES.INTEGER
   },
   getProfileData: true,
-  retryErrors: true,
-  dropDB: false
-  //accountList: ['stepstone','active', 'pro7', '1und1', 'lastminutegroup']
-  // accountProfileList: [{ account: 'pro7', profile: 'verivox20-de' }]
+  retryErrors: false,
+  dropDB: true,
+  // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
+  accountProfileList: [{ account: 'pro7', profile: 'verivox20-de' }]
 })
 
 function profileChecker ({ iQ, record, error, account, profile, profileData, resolve, reject }) {
@@ -73,6 +76,7 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
       tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 30),
       tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 180)
     ]
+
     Promise.all(arrayOfPromises)
       .catch(function (err) {
       // log that I have an error, return the entire array;
@@ -88,6 +92,7 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
         const prodVersion = prodProfileData && prodProfileData.settings && prodProfileData.settings.revision
 
         const detectedCmps = profileHelper.getDetectedCmps(utag)
+        const foundIabTcf2 = profileHelper.checkForIabTcf2(utag)
         const foundPrivacyManager = profileHelper.checkForPrivacyManager(prodProfileData)
         const foundConsentPrompt = profileHelper.checkForConsentPrompt(prodProfileData)
         const foundConsentPreferences = profileHelper.checkForConsentPreferences(prodProfileData)
@@ -117,6 +122,7 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
 
           cmp_extension: profileHelper.checkForCmpExtensionInUtag(utag),
           cmp_detected: detectedCmps,
+          iab_tcf_2: foundIabTcf2,
           all_consent_tools: allTools,
 
           mobile_publishing: profileHelper.checkForMobilePublishing(prodProfileData),
@@ -133,7 +139,8 @@ function profileChecker ({ iQ, record, error, account, profile, profileData, res
           volume_per_visit_one_month: (volumesOneMonth.loader + volumesOneMonth.mobile) / (volumesOneMonth.visit || 1),
           volume_per_visit_six_months: (volumesSixMonths.loader + volumesSixMonths.mobile) / (volumesSixMonths.visit || 1),
 
-          tag_count: size(prodProfileData.manage)
+          tag_count: size(prodProfileData.manage),
+          days_since_prod_publish: profileHelper.getDaysSinceVersion(prodVersion)
         })
         resolve()
       })

@@ -45,8 +45,8 @@ const cmps = {
 }
 
 const checkForCodeSignatures = function (signatures, string) {
-  function escapeRegExp(text) {
-    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+  function escapeRegExp (text) {
+    return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')
   }
   signatures = signatures || []
   let foundCmp = 0
@@ -55,7 +55,7 @@ const checkForCodeSignatures = function (signatures, string) {
     // needs to be multiline to work correctly on the utag string
     const reMid = new RegExp(`^.*[^A-Za-z_\\-0-9]+${escapedSnippetForRegExp}`, 'm')
     const reStart = new RegExp(`^${escapedSnippetForRegExp}`, 'm')
-    if (typeof snippet === 'string' && snippet !== '' && typeof string === 'string' && reMid.test(string) || reStart.test(string)) {
+    if ((typeof snippet === 'string' && snippet !== '' && typeof string === 'string' && reMid.test(string)) || reStart.test(string)) {
       foundCmp = 1
     }
   })
@@ -67,11 +67,76 @@ exports.getDetectedCmps = function (utag) {
   Object.keys(cmps).forEach((name) => {
     const signatures = cmps[name]
     const utagString = utag && utag.contents && utag.contents.data
-    if (typeof utagString === "string" && checkForCodeSignatures(signatures, utagString)) {
+    if (typeof utagString === 'string' && checkForCodeSignatures(signatures, utagString)) {
       cmpOutput.push(name)
     }
   })
   return cmpOutput.join(' + ')
+}
+
+exports.checkForIabTcf2 = function (utag) {
+  const signatures = ['euconsent-v2', '__tcfapi']
+  const utagString = utag && utag.contents && utag.contents.data
+  if (typeof utagString === 'string' && checkForCodeSignatures(signatures, utagString)) {
+    return 1
+  }
+  return 0
+}
+
+exports.checkForProdIq = function (oneMonth, sixMonths) {
+  const oneMonthLimit = 1000
+  const sixMonthLimit = 6000
+
+  const oneMonthNumber = oneMonth.loader > oneMonth.mobile ? oneMonth.loader : oneMonth.mobile
+  const sixMonthNumber = sixMonths.loader > sixMonths.mobile ? sixMonths.loader : sixMonths.mobile
+
+  return !!(oneMonthNumber >= oneMonthLimit) || (sixMonthNumber >= sixMonthLimit)
+}
+
+exports.checkForProdCdh = function (oneMonth, sixMonths) {
+  return !!(oneMonth.all_inbound_events >= 1000 || sixMonths.all_inbound_events >= 6000)
+}
+
+exports.countActiveTagsByTemplateId = function (profileData) {
+  const allTagIds = Object.keys(profileData.manage || {})
+  const tagCounter = {}
+  tagCounter.total = 0
+  tagCounter.from_library = 0
+  allTagIds.forEach(function (id) {
+    const tagInfo = profileData.manage[id]
+    const activeOnProd = tagInfo.selectedTargets && tagInfo.selectedTargets.prod === 'true' && tagInfo.status === 'active'
+    if (activeOnProd === true) {
+      tagCounter[tagInfo.tag_id] = tagCounter[tagInfo.tag_id] || 0
+      tagCounter.total++
+      tagCounter[tagInfo.tag_id]++
+
+      if (tagInfo.settings && typeof tagInfo.settings.library === 'string') {
+        tagCounter.from_library++
+      }
+    }
+  })
+  return tagCounter
+}
+
+exports.countActiveExtensionsByTemplateId = function (profileData) {
+  const allExtensionIds = Object.keys(profileData.customizations || {})
+  const extensionCounter = {}
+  extensionCounter.total = 0
+  extensionCounter.from_library = 0
+  allExtensionIds.forEach(function (id) {
+    const info = profileData.customizations[id]
+    const activeOnProd = info.selectedTargets && info.selectedTargets.prod === 'true' && info.status === 'active'
+    if (activeOnProd === true) {
+      extensionCounter[info.id] = extensionCounter[info.id] || 0
+      extensionCounter.total++
+      extensionCounter[info.id]++
+
+      if (info.settings && typeof info.settings.library === 'string') {
+        extensionCounter.from_library++
+      }
+    }
+  })
+  return extensionCounter
 }
 
 // return 0 or 1 (boolean) for db compatibility
@@ -158,5 +223,9 @@ exports.checkForCmpExtensionInUtag = function (utag) {
 }
 
 exports.getDaysSinceVersion = function (versionString) {
-  return versionString
+  const formatted = `${versionString.slice(0, 4)}-${versionString.slice(4, 6)}-${versionString.slice(6, 8)}T${versionString.slice(8, 10)}:${versionString.slice(10, 12)}:00.000Z`
+  const publishTime = new Date(formatted)
+  const now = new Date()
+  const daysSincePublish = Math.round((now - publishTime) / 86400000)
+  return daysSincePublish
 }

@@ -9,6 +9,11 @@ const getPastTimestampMs = function (daysInPast) {
   return Date.now() - (daysInPast * 86400000)
 }
 
+const getDayFromTimestampMs = function (timestampMs) {
+  const theDate = new Date(timestampMs)
+  return theDate.toISOString().split('T')[0] + 'T00:00:00.000Z'
+}
+
 exports.getVolumesForRollingPeriod = (account, profile, getVolumesHelper, rollingDaysBack) => {
   return new Promise((resolve, reject) => {
     'use strict'
@@ -39,7 +44,35 @@ exports.getVolumesForRollingPeriod = (account, profile, getVolumesHelper, rollin
   })
 }
 
+exports.getCdhVolumesForRollingPeriod = (account, profile, getVolumesHelper, rollingDaysBack) => {
+  return new Promise((resolve, reject) => {
+    'use strict'
+    const startDate = getDayFromTimestampMs(getPastTimestampMs(rollingDaysBack))
+    const endDate = getDayFromTimestampMs(getPastTimestampMs(0))
+
+    getVolumesHelper(account, profile, startDate, endDate)
+      .then((output) => {
+        const summary = {}
+        const volumeMetrics = Object.keys(output)
+        volumeMetrics.forEach((key) => {
+          const dailyTotals = output[key]
+          const sum = dailyTotals.reduce((prev, current) => {
+            return prev + current.events
+          }, 0)
+          summary[key] = sum
+        })
+        resolve(summary)
+      })
+      .catch((error) => {
+        error = error || {}
+        // console.log(`ERROR: ${error.stack}`)
+        reject(error)
+      })
+  })
+}
+
 exports.getUtagFileFromCdn = function (account, profile, environment) {
+  'use strict'
   return new Promise((resolve, reject) => {
     const requestObject = tealiumCdnRequests.getCurrentUtagJsFromCdn(account, profile, environment)
     axios(requestObject)
