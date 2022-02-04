@@ -233,16 +233,53 @@ reportHandler({
 
         // cdhEntry: DATABASE_TYPES.TEXT
       }
+    },
+    {
+      name: 'all_products',
+      definition: {
+        product_name: DATABASE_TYPES.INTEGER,
+        enabled: DATABASE_TYPES.INTEGER,
+        retention_days: DATABASE_TYPES.INTEGER,
+        volume_30_days: DATABASE_TYPES.INTEGER,
+        volume_180_days: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
+      name: 'tag_templates_in_production',
+      definition: {
+        template_name: DATABASE_TYPES.TEXT,
+        template_id: DATABASE_TYPES.INTEGER,
+        count: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
+      name: 'iq_saves',
+      definition: {
+        version: DATABASE_TYPES.INTEGER,
+        time: DATABASE_TYPES.TEXT,
+        user_email: DATABASE_TYPES.TEXT,
+        published_environments: DATABASE_TYPES.TEXT
+      }
+    },
+    {
+      name: 'cdh_saves',
+      definition: {
+        version: DATABASE_TYPES.INTEGER,
+        time: DATABASE_TYPES.TEXT,
+        user_email: DATABASE_TYPES.TEXT,
+        published_environments: DATABASE_TYPES.TEXT
+      }
     }
+
   ],
   getProfileData: false,
   cacheRequests: true,
-  useRequestCache: true,
+  useRequestCache: false,
   retryErrors: false,
-  dropDB: true,
-  accountList: ['immoweltgroup']
+  dropDB: true
+  // accountList: ['oracle', 'alaska']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  // accountProfileList: [{ account: 'immoweltgropu', profile: 'web.immowelt.blank' }]
+  // accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, resolve, reject }) {
@@ -405,6 +442,29 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       }
 
       record('iq_profiles', iqRecord)
+
+      Object.keys(tagCounter).forEach(function (tagId) {
+        // only generate entries for tag templates, not summary keys
+        const nonTagKeys = ['from_library', 'tag_template_count', 'total', 'top_three_tags_with_percentages']
+        if (nonTagKeys.indexOf(tagId) !== -1) return
+        record('tag_templates_in_production', {
+          account,
+          profile,
+          template_name: tagCounter[tagId].name,
+          template_id: tagId,
+          count: tagCounter[tagId].count
+        })
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'Tealium iQ',
+        retention_days: undefined,
+        enabled: 1,
+        volume_30_days: iqVolumes30Days.visit,
+        volume_180_days: iqVolumes180Days.visit
+      })
     }
 
     if (cdhInProd === true) {
@@ -420,7 +480,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         region,
         dataAccessDBExpirationDays,
         eventStoreRetentionDays,
-        visitorRetentionDays
+        visitorRetentionDays,
+        machineLearningEnabled
       } = cdhProfileData.settings
 
       function boolToInt (theBool) {
@@ -440,8 +501,9 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         eventDBEnabled: boolToInt(eventDBEnabled),
         eventStoreEnabled: boolToInt(eventStoreEnabled),
         eventStreamEnabled: boolToInt(eventStreamEnabled),
+        predictPremiumEnabled: boolToInt(machineLearningEnabled),
         region: region,
-        dataAccessDBExpirationDays: dataAccessDBExpirationDays,
+        dataAccessDBExpirationDays: dataAccessDBExpirationDays || 90,
         eventStoreRetentionDays: eventStoreRetentionDays,
         visitorRetentionDays: visitorRetentionDays,
 
@@ -482,6 +544,75 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         // cdhEntry: JSON.stringify(cdhProfileData)
       }
       record('cdh_profiles', cdhRecord)
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'EventStream',
+        enabled: cdhRecord.eventStreamEnabled,
+        volume_30_days: cdhRecord.volume_all_inbound_events_30_days,
+        volume_180_days: cdhRecord.volume_all_inbound_events_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'EventStore',
+        enabled: cdhRecord.eventStoreEnabled,
+        retention_days: cdhRecord.eventStoreRetentionDays,
+        volume_30_days: cdhRecord.volume_all_inbound_events_30_days,
+        volume_180_days: cdhRecord.volume_all_inbound_events_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'EventDB',
+        enabled: cdhRecord.eventDBEnabled,
+        retention_days: cdhRecord.dataAccessDBExpirationDays,
+        volume_30_days: cdhRecord.volume_all_inbound_events_30_days,
+        volume_180_days: cdhRecord.volume_all_inbound_events_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'AudienceStream',
+        enabled: cdhRecord.audienceStreamEnabled,
+        retention_days: cdhRecord.visitorRetentionDays,
+        volume_30_days: cdhRecord.volume_audiencestream_filtered_events_30_days,
+        volume_180_days: cdhRecord.volume_audiencestream_filtered_events_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'AudienceStore',
+        enabled: cdhRecord.audienceStoreEnabled,
+        retention_days: undefined,
+        volume_30_days: cdhRecord.volume_audiencestore_visitors_30_days,
+        volume_180_days: cdhRecord.volume_audiencestore_visitors_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'AudienceDB',
+        retention_days: cdhRecord.visitorRetentionDays,
+        enabled: cdhRecord.audienceDBEnabled,
+        volume_30_days: cdhRecord.volume_audiencedb_visitors_30_days,
+        volume_180_days: cdhRecord.volume_audiencedb_visitors_180_days
+      })
+
+      record('all_products', {
+        account,
+        profile,
+        product_name: 'Predict',
+        retention_days: undefined,
+        enabled: cdhRecord.predictPremiumEnabled,
+        volume_30_days: cdhRecord.volume_predict_enrichments_30_days,
+        volume_180_days: cdhRecord.volume_predict_enrichments_180_days
+      })
     }
 
     resolve()

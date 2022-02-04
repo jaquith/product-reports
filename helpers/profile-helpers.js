@@ -38,7 +38,7 @@ const cmps = {
   sourcepoint: ['_sp_v1_', '_sp_'],
   termly: ['TERMLY_API_CACHE', 'termly'],
   truendo: ['truendo_cmp'],
-  trustarc: ['ccmapi_cookie_privacy'],
+  trustarc: ['ccmapi_cookie_privacy', 'truste.'],
   trustcommander: ['TC_'],
   uniconsent: ['uniconsent-v2', '__unic'],
   usercentrics: ['usercentrics', 'uc_settings']
@@ -107,9 +107,11 @@ exports.countActiveTagsByTemplateId = function (profileData) {
     const tagInfo = profileData.manage[id]
     const activeOnProd = tagInfo.selectedTargets && tagInfo.selectedTargets.prod === 'true' && tagInfo.status === 'active'
     if (activeOnProd === true) {
-      tagCounter[tagInfo.tag_id] = tagCounter[tagInfo.tag_id] || 0
+      tagCounter[tagInfo.tag_id] = tagCounter[tagInfo.tag_id] || {}
+      tagCounter[tagInfo.tag_id].count = tagCounter[tagInfo.tag_id].count || 0
       tagCounter.total++
-      tagCounter[tagInfo.tag_id]++
+      tagCounter[tagInfo.tag_id].count++
+      tagCounter[tagInfo.tag_id].name = tagInfo.tag_name
       names[tagInfo.tag_id] = tagInfo.tag_name
       if (tagInfo.settings && typeof tagInfo.settings.library === 'string') {
         tagCounter.from_library++
@@ -127,11 +129,11 @@ exports.countActiveTagsByTemplateId = function (profileData) {
   const pickHighest = (obj, num = 1) => {
     const requiredObj = {}
     Object.keys(obj).sort((a, b) => obj[b] - obj[a])
-                    .forEach((key, ind) => {
-      if (ind < num) {
-        requiredObj[names[key]] = Math.round((obj[key] / tagCounter.total) * 100) + '%'
-      }
-    })
+      .forEach((key, ind) => {
+        if (ind < num) {
+          requiredObj[names[key]] = Math.round((obj[key] / tagCounter.total) * 100) + '%'
+        }
+      })
     return requiredObj
   }
 
