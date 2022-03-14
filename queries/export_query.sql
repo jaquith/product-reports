@@ -40,7 +40,7 @@ SELECT account
 					   END AS has_cmp
 					   
 				 , CASE
-							WHEN mobile_publishing = 1 AND (mobile_to_loader_ratio_past_month > 1 OR mobile_to_loader_ratio_past_six_months >1)
+							WHEN mobile_publishing = 1 AND (mobile_30_days >= loader_30_days  > 1 OR mobile_180_days >= loader_180_days)
 							   THEN 1
 							   ELSE 0
 					   END AS likely_mobile_profile
@@ -50,20 +50,18 @@ SELECT account
 						   ELSE 0
 					   END AS has_consent_manager
 				 , CASE
-							WHEN mobile_publishing = 1 AND (mobile_to_loader_ratio_past_month > 1 OR mobile_to_loader_ratio_past_six_months >1)
+							WHEN mobile_publishing = 1 AND (mobile_30_days >= loader_30_days OR mobile_180_days >= loader_180_days)
 							   THEN 1
 							   ELSE 0
 					   END AS likely_mobile_profile
 				 , mobile_publishing
-				 , visits_past_six_months
-				 , loader_past_six_months
-				 , mobile_past_six_months
-				 , visits_past_month
-				 , loader_past_month
-				 , mobile_past_month
-				 , volume_per_visit_one_month
-				 , volume_per_visit_six_months
-FROM log
+				 , visit_180_days as visits_past_six_months
+				 , loader_180_days as loader_past_six_months
+				 , mobile_180_days as mobile_past_six_months
+				 , visit_30_days as visits_past_month
+				 , loader_30_days as loader_past_month
+				 , mobile_30_days as mobile_past_month
+FROM iq_profiles
 
 WHERE 
   /* only export production-level traffic (this is a pretty low bar for that) */
