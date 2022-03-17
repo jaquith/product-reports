@@ -74,6 +74,11 @@ exports.getDetectedCmps = function (utag) {
   return cmpOutput.join(' + ')
 }
 
+exports.getProfileType = function (profileData) {
+  if (profileData.settings.library === 'NONE') return 'standard'
+  return 'library'
+}
+
 exports.checkForIabTcf2 = function (utag) {
   const signatures = ['euconsent-v2', '__tcfapi']
   const utagString = utag && utag.contents && utag.contents.data
@@ -83,38 +88,27 @@ exports.checkForIabTcf2 = function (utag) {
   return 0
 }
 
-exports.checkForProdIq = function (oneMonth, sixMonths) {
-  const oneMonthLimit = 1000
-  const sixMonthLimit = 6000
-
-  const oneMonthNumber = oneMonth.loader > oneMonth.mobile ? oneMonth.loader : oneMonth.mobile
-  const sixMonthNumber = sixMonths.loader > sixMonths.mobile ? sixMonths.loader : sixMonths.mobile
-
-  return !!(oneMonthNumber >= oneMonthLimit) || (sixMonthNumber >= sixMonthLimit)
-}
-
-exports.checkForProdCdh = function (oneMonth, sixMonths) {
-  return !!(oneMonth.all_inbound_events >= 1000 || sixMonths.all_inbound_events >= 6000)
-}
-
 exports.countActiveTagsByTemplateId = function (profileData) {
   const allTagIds = Object.keys(profileData.manage || {})
   const tagCounter = {}
   const names = {}
   tagCounter.total = 0
-  tagCounter.from_library = 0
+  tagCounter.total_from_library = 0
   allTagIds.forEach(function (id) {
     const tagInfo = profileData.manage[id]
     const activeOnProd = tagInfo.selectedTargets && tagInfo.selectedTargets.prod === 'true' && tagInfo.status === 'active'
     if (activeOnProd === true) {
       tagCounter[tagInfo.tag_id] = tagCounter[tagInfo.tag_id] || {}
       tagCounter[tagInfo.tag_id].count = tagCounter[tagInfo.tag_id].count || 0
+      tagCounter[tagInfo.tag_id].count_from_library = tagCounter[tagInfo.tag_id].count_from_library || 0
       tagCounter.total++
       tagCounter[tagInfo.tag_id].count++
       tagCounter[tagInfo.tag_id].name = tagInfo.tag_name
       names[tagInfo.tag_id] = tagInfo.tag_name
       if (tagInfo.settings && typeof tagInfo.settings.library === 'string') {
-        tagCounter.from_library++
+        tagCounter[tagInfo.tag_id].name = tagInfo.tag_name
+        tagCounter.total_from_library++
+        tagCounter[tagInfo.tag_id].count_from_library++
       }
     }
   })
@@ -122,41 +116,96 @@ exports.countActiveTagsByTemplateId = function (profileData) {
 
   const justTagsNoTotals = JSON.parse(JSON.stringify(tagCounter))
   delete justTagsNoTotals.total
-  delete justTagsNoTotals.from_library
+  delete justTagsNoTotals.total_from_library
 
   tagCounter.tag_template_count = Object.keys(tagCounter).length - 2 // subtract the total and library counter
 
-  const pickHighest = (obj, num = 1) => {
-    const requiredObj = {}
-    Object.keys(obj).sort((a, b) => obj[b] - obj[a])
-      .forEach((key, ind) => {
-        if (ind < num) {
-          requiredObj[names[key]] = Math.round((obj[key] / tagCounter.total) * 100) + '%'
-        }
-      })
-    return requiredObj
-  }
-
-  tagCounter.top_three_tags_with_percentages = pickHighest(justTagsNoTotals, 3) || {}
-
   return tagCounter
+}
+
+exports.countAttributesByType = function (cdhProfileData) {
+  const output = {}
+  cdhProfileData.quantifiers.forEach(function (attr) {
+    const key = `${attr.context} ${attr.type}`
+    output[key] = output[key] || {}
+    output[key].context = attr.context
+    output[key].type = attr.type
+    output[key].count = output[key].count || 0
+    output[key].count_preloaded = output[key].count_preloaded || 0
+    output[key].count_db_enabled = output[key].count_db_enabled || 0
+    output[key].count++
+
+    if (attr.preloaded === true) {
+      output[key].count_preloaded++
+    }
+
+    if ((attr.context === 'Event' && attr.eventDBEnabled === true) ||
+        ((attr.context === 'Visitor' || attr.context === 'Current Visit') && attr.audienceDBEnabled === true)) {
+      output[key].count_db_enabled++
+    }
+  })
+  return output
+}
+
+exports.countConnectorActionsByType = function (cdhProfileData) {
+  const output = {}
+
+  // make a lookup object to avoid looping every time
+  const actionLookup = {}
+  cdhProfileData.actions.forEach(function (action) {
+    if (action.enabled !== true) return // skip deactivated
+    // connector.configurations.prod.forEach()
+    const key = `${action.connectorId}`
+    actionLookup[key] = actionLookup[key] || {}
+    actionLookup[key][action.type] = actionLookup[key][action.type] || {}
+    actionLookup[key][action.type][action.trigger] = actionLookup[key][action.trigger] || 0
+    actionLookup[key][action.type][action.trigger]++
+  })
+
+
+  cdhProfileData.connectors.forEach(function (connector) {
+    if (connector.enabled !== true) return // skip deactivated
+    // connector.configurations.prod.forEach()
+    const key = `${connector.type}`
+    output[key] = output[key] || {}
+    output[key].type = connector.type
+    output[key].count = output[key].count || 0
+    output[key].action_counts = output[key].action_counts || {}
+    output[key].count++
+
+    const actions = actionLookup[connector.id]
+    Object.keys(actions).forEach(function (actionType) {
+      output[key].action_counts[actionType] = output[key].action_counts[actionType] || {}
+      Object.keys(actions[actionType]).forEach(function (trigger) {
+        output[key].action_counts[actionType][trigger] = output[key].action_counts[actionType][trigger] || 0
+        output[key].action_counts[actionType][trigger]++
+      })
+    })
+
+  })
+  return output
 }
 
 exports.countActiveExtensionsByTemplateId = function (profileData) {
   const allExtensionIds = Object.keys(profileData.customizations || {})
   const extensionCounter = {}
   extensionCounter.total = 0
-  extensionCounter.from_library = 0
+  extensionCounter.total_from_library = 0
   allExtensionIds.forEach(function (id) {
     const info = profileData.customizations[id]
     const activeOnProd = info.selectedTargets && info.selectedTargets.prod === 'true' && info.status === 'active'
     if (activeOnProd === true) {
-      extensionCounter[info.id] = extensionCounter[info.id] || 0
+      extensionCounter[info.id] = extensionCounter[info.id] || {}
+      extensionCounter[info.id].count = extensionCounter[info.id].count || 0
+      extensionCounter[info.id].count_from_library = extensionCounter[info.id].count_from_library || 0
+      extensionCounter[info.id].count++
+      extensionCounter[info.id].id = info.id
+      extensionCounter[info.id].name = info.extType
       extensionCounter.total++
-      extensionCounter[info.id]++
 
       if (info.settings && typeof info.settings.library === 'string') {
-        extensionCounter.from_library++
+        extensionCounter.total_from_library++
+        extensionCounter[info.id].count_from_library++
       }
     }
   })

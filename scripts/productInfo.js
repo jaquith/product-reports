@@ -75,7 +75,7 @@ async function getVolumes (account, profile, iQ, CDH) {
 }
 
 reportHandler({
-  logName: 'theBigOne',
+  logName: 'productInfo',
   checkProfile: profileChecker,
   dbDataTypes: [
     {
@@ -118,50 +118,6 @@ reportHandler({
         cmp_detected: DATABASE_TYPES.TEXT,
         all_consent_tools: DATABASE_TYPES.TEXT,
 
-        // standard data
-        ext_count_lowercasing: DATABASE_TYPES.INTEGER,
-        ext_count_set_data_values: DATABASE_TYPES.INTEGER,
-        ext_count_persist_data_value: DATABASE_TYPES.INTEGER,
-        ext_count_previous_page: DATABASE_TYPES.INTEGER,
-        ext_count_join_data_values: DATABASE_TYPES.INTEGER,
-        ext_count_hosted_data_layer: DATABASE_TYPES.INTEGER,
-        ext_count_lookup_table: DATABASE_TYPES.INTEGER,
-        ext_count_pathname_tokenizer: DATABASE_TYPES.INTEGER,
-        ext_count_crypto: DATABASE_TYPES.INTEGER,
-
-        // advanced
-        ext_count_ecommerce: DATABASE_TYPES.INTEGER,
-        ext_count_domain_based_deployment: DATABASE_TYPES.INTEGER,
-        ext_count_channels: DATABASE_TYPES.INTEGER,
-
-        ext_count_javascript: DATABASE_TYPES.INTEGER,
-        ext_count_advanced_javascript: DATABASE_TYPES.INTEGER,
-        ext_count_view_through_tracking: DATABASE_TYPES.INTEGER,
-        ext_count_china_cdn_deployment: DATABASE_TYPES.INTEGER,
-        ext_count_content_modification: DATABASE_TYPES.INTEGER,
-        ext_count_modal_offer: DATABASE_TYPES.INTEGER,
-        ext_count_flatten_json_objects: DATABASE_TYPES.INTEGER,
-        ext_count_data_validation: DATABASE_TYPES.INTEGER,
-        ext_count_split_segmentation: DATABASE_TYPES.INTEGER,
-
-        // events
-        ext_count_link_tracking: DATABASE_TYPES.INTEGER,
-        ext_count_jquery_1_6: DATABASE_TYPES.INTEGER,
-        ext_count_jquery_1_7: DATABASE_TYPES.INTEGER,
-        ext_count_tealium_events: DATABASE_TYPES.INTEGER,
-
-        // tag specific
-        ext_count_adobe_target_content_modification: DATABASE_TYPES.INTEGER,
-        ext_count_currency_converter: DATABASE_TYPES.INTEGER,
-
-        // privacy
-        ext_count_tracking_opt_out: DATABASE_TYPES.INTEGER,
-        ext_count_privacy_manager: DATABASE_TYPES.INTEGER,
-        ext_count_do_not_track: DATABASE_TYPES.INTEGER,
-
-        ext_count_usercentrics_v1: DATABASE_TYPES.INTEGER,
-        ext_count_usercentrics_v2: DATABASE_TYPES.INTEGER,
-
         ext_count_total: DATABASE_TYPES.INTEGER,
         ext_count_from_library: DATABASE_TYPES.INTEGER,
 
@@ -172,9 +128,7 @@ reportHandler({
 
         tag_count_unique_templates: DATABASE_TYPES.INTEGER,
         tag_count_total: DATABASE_TYPES.INTEGER,
-        tag_count_from_library: DATABASE_TYPES.INTEGER,
-
-        top_three_tags_with_percentages: DATABASE_TYPES.TEXT
+        tag_count_from_library: DATABASE_TYPES.INTEGER
 
         // iab_tcf_2: DATABASE_TYPES.INTEGER,
 
@@ -183,9 +137,18 @@ reportHandler({
       }
     },
     {
+      name: 'tiq_extensions_in_production',
+      definition: {
+        // standard data
+        extension_name: DATABASE_TYPES.TEXT,
+        extension_id: DATABASE_TYPES.INTEGER,
+        count: DATABASE_TYPES.INTEGER,
+        count_from_library: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
       name: 'cdh_profiles',
       definition: {
-
         audienceStreamEnabled: DATABASE_TYPES.INTEGER,
         audienceStoreEnabled: DATABASE_TYPES.INTEGER,
         audienceDBEnabled: DATABASE_TYPES.INTEGER,
@@ -235,9 +198,16 @@ reportHandler({
       }
     },
     {
+      name: 'account_and_profile_types',
+      definition: {
+        account_type: DATABASE_TYPES.TEXT,
+        profile_type: DATABASE_TYPES.TEXT
+      }
+    },
+    {
       name: 'all_products',
       definition: {
-        product_name: DATABASE_TYPES.INTEGER,
+        product_name: DATABASE_TYPES.TEXT,
         enabled: DATABASE_TYPES.INTEGER,
         retention_days: DATABASE_TYPES.INTEGER,
         volume_30_days: DATABASE_TYPES.INTEGER,
@@ -249,40 +219,43 @@ reportHandler({
       definition: {
         template_name: DATABASE_TYPES.TEXT,
         template_id: DATABASE_TYPES.INTEGER,
+        count: DATABASE_TYPES.INTEGER,
+        count_from_library: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
+      name: 'cdh_attributes_in_production',
+      definition: {
+        context: DATABASE_TYPES.TEXT,
+        type: DATABASE_TYPES.TEXT,
+        count_preloaded: DATABASE_TYPES.INTEGER,
+        count_db_enabled: DATABASE_TYPES.INTEGER,
         count: DATABASE_TYPES.INTEGER
       }
     },
     {
-      name: 'iq_saves',
+      name: 'cdh_connector_actions_and_triggers_in_production',
       definition: {
-        version: DATABASE_TYPES.INTEGER,
-        time: DATABASE_TYPES.TEXT,
-        user_email: DATABASE_TYPES.TEXT,
-        published_environments: DATABASE_TYPES.TEXT
-      }
-    },
-    {
-      name: 'cdh_saves',
-      definition: {
-        version: DATABASE_TYPES.INTEGER,
-        time: DATABASE_TYPES.TEXT,
-        user_email: DATABASE_TYPES.TEXT,
-        published_environments: DATABASE_TYPES.TEXT
+        connector_type: DATABASE_TYPES.TEXT,
+        action_type: DATABASE_TYPES.TEXT,
+        trigger: DATABASE_TYPES.TEXT,
+        count: DATABASE_TYPES.INTEGER
       }
     }
-
   ],
   getProfileData: false,
-  cacheRequests: false,
-  useRequestCache: false,
-  retryErrors: true,
-  dropDB: false
-  // accountList: ['bosch']
+  cacheRequests: true,
+  useRequestCache: true,
+  retryErrors: false,
+  dropDB: true,
+  allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
+  //accountList: ['services-caleb', 'pro7']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  // accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
+  accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, resolve, reject }) {
+  let errorStage = 'tiq'
   try {
     const volumes = await getVolumes(account, profile, iQ, CDH)
 
@@ -292,8 +265,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
     const cdhVolumes30Days = volumes.cdh['30days']
     const cdhVolumes180Days = volumes.cdh['180days']
 
-    const iqInProd = profileHelper.checkForProdIq(iqVolumes30Days, iqVolumes180Days)
-    const cdhInProd = profileHelper.checkForProdCdh(cdhVolumes30Days, cdhVolumes180Days)
+    const iqInProd = true // record all for now
+    const cdhInProd = true // record all for now
 
     if (iqInProd === true) {
       // we only care about the latest production profile, NOT the latest profile save (which is what we start with)
@@ -334,7 +307,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       if (foundConsentManager) allConsentToolsArray.push('teal_cm')
       const allConsentTools = allConsentToolsArray.join(' + ')
 
-      // const extensionCounter = profileHelper.countActiveExtensionsByTemplateId(prodProfileData)
+      const extensionCounter = profileHelper.countActiveExtensionsByTemplateId(prodProfileData)
       const tagCounter = profileHelper.countActiveTagsByTemplateId(prodProfileData)
 
       const iqRecord = {
@@ -377,37 +350,57 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         cmp_detected: detectedCmps,
         all_consent_tools: allConsentTools,
 
+        ext_count_total: extensionCounter.total || 0,
+        ext_count_from_library: extensionCounter.from_library || 0,
+
         tag_count_tealium_collect_tag: (tagCounter['20064'] && tagCounter['20064'].count) || 0,
         tag_count_tealium_custom_container: (tagCounter['20010'] && tagCounter['20010'].count) || 0,
         tag_count_tealium_generic_tag: (tagCounter['20067'] && tagCounter['20067'].count) || 0,
         tag_count_tealium_pixel_iframe_container: (tagCounter['20011'] && tagCounter['20011'].count) || 0,
 
-        tag_count_unique_templates: tagCounter.tag_template_count || 0,
-        tag_count_total: tagCounter.total || 0,
-        tag_count_from_library: tagCounter.from_library || 0,
-
-        top_three_tags_with_percentages: JSON.stringify(tagCounter.top_three_tags_with_percentages)
-
-        // iab_tcf_2: foundIabTcf2,
-
-        // prodProfileData: JSON.stringify(prodProfileData),
-        // utagFromCdn: (utag && utag.contents && utag.contents.data) || ''
-
+        tag_count_unique_templates: tagCounter.tag_template_count,
+        tag_count_total: tagCounter.total,
+        tag_count_from_library: tagCounter.total_from_library
       }
 
       record('iq_profiles', iqRecord)
 
       Object.keys(tagCounter).forEach(function (tagId) {
         // only generate entries for tag templates, not summary keys
-        const nonTagKeys = ['from_library', 'tag_template_count', 'total', 'top_three_tags_with_percentages']
+        const nonTagKeys = ['total_from_library', 'total', 'tag_template_count']
         if (nonTagKeys.indexOf(tagId) !== -1) return
         record('tag_templates_in_production', {
           account,
           profile,
           template_name: tagCounter[tagId].name,
           template_id: tagId,
-          count: tagCounter[tagId].count
+          count: tagCounter[tagId].count,
+          count_from_library: tagCounter[tagId].count_from_library
         })
+      })
+
+      Object.keys(extensionCounter).forEach(function (id) {
+        // only generate entries for tag templates, not summary keys
+        const totals = ['total_from_library', 'total']
+        if (totals.indexOf(id) !== -1) return
+        record('tiq_extensions_in_production', {
+          account,
+          profile,
+          extension_name: extensionCounter[id].name,
+          extension_id: id,
+          count: extensionCounter[id].count,
+          count_from_library: extensionCounter[id].count_from_library
+        })
+      })
+
+      const accountType = tealiumHelper.getAccountType(account)
+      const profileType = profileHelper.getProfileType(profileData)
+
+      record('account_and_profile_types', {
+        account,
+        profile,
+        account_type: accountType,
+        profile_type: profileType
       })
 
       record('all_products', {
@@ -421,6 +414,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       })
     }
 
+    errorStage = 'cdh'
     if (cdhInProd === true) {
       const cdhProfileData = await CDH.getProfile(account, profile)
 
@@ -499,6 +493,36 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       }
       record('cdh_profiles', cdhRecord)
 
+      const attributeSummary = profileHelper.countAttributesByType(cdhProfileData)
+      Object.keys(attributeSummary).forEach(function (key) {
+        record('cdh_attributes_in_production', {
+          account,
+          profile,
+          context: attributeSummary[key].context,
+          type: attributeSummary[key].type,
+          count: attributeSummary[key].count,
+          count_preloaded: attributeSummary[key].count_preloaded,
+          count_db_enabled: attributeSummary[key].count_db_enabled
+        })
+      })
+
+      const connectorActionSummary = profileHelper.countConnectorActionsByType(cdhProfileData)
+
+      Object.keys(connectorActionSummary).forEach(function (key) {
+        Object.keys(connectorActionSummary[key].action_counts).forEach(function (action) {
+          Object.keys(connectorActionSummary[key].action_counts[action]).forEach(function (trigger) {
+            record('cdh_connector_actions_and_triggers_in_production', {
+              account,
+              profile,
+              connector_type: connectorActionSummary[key].type,
+              action_type: action,
+              trigger: trigger,
+              count: connectorActionSummary[key].action_counts[action][trigger]
+            })
+          })
+        })
+      })
+
       record('all_products', {
         account,
         profile,
@@ -571,9 +595,49 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
     }
 
     resolve()
-
-    // make sure we have a valid UTK and JSESSIONID first
   } catch (e) {
     reject(e)
   }
 }
+
+/*
+const extensionNamesById = {
+  // standard
+  100001: "Lowercasing",
+  100003: "Set Data Values",
+  100004: "Persist Data Value",
+  100013: "Previous Page",
+  100002: "Join Data Values",
+  100037: "Hosted Data Layer"
+  100020: "Lookup Table",
+  100025: "Pathname Tokenizer",
+  100033: "Crypto Extension",
+  // advanced
+  100005: "Ecommerce",
+  100006: "Domain-Based Deployment",
+  100007: "Channels",
+  100036: "Javascript Code",
+  100040: "Advanced Javascript Code",
+  100041: "View-Through Tracking",
+  100042: "China CDN Deployment"
+  100016: "Content Modification",
+  100035: "Modal Offer",
+  100021: "Flatten JSON Objects",
+  100018: "Data Validation",
+  100018: "Split Segmentation",
+  // events
+  100015: "Link Tracking",
+  100029: "jQuery clickHandler (1.6 and below)",
+  100032: "jQuery clickHandler (1.7 and above)",
+  100039: "Tealium Events",
+  // tag-specific
+  100038: "Adobe Target Tag Content Modification",
+  100031: "Currency Converter",
+  // privacy
+  100022: "Tracking Opt-Out",
+  100026: "Privacy Manager",
+  100034: "Do Not Track",
+  100043: "Usercentrics V1",
+  100044: "Usercentrics V2"
+}
+*/
