@@ -249,13 +249,12 @@ reportHandler({
   retryErrors: false,
   dropDB: true,
   allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
-  //accountList: ['services-caleb', 'pro7']
+  // accountList: ['services-caleb', 'pro7']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
   accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, resolve, reject }) {
-  let errorStage = 'tiq'
   try {
     const volumes = await getVolumes(account, profile, iQ, CDH)
 
@@ -414,7 +413,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       })
     }
 
-    errorStage = 'cdh'
     if (cdhInProd === true) {
       const cdhProfileData = await CDH.getProfile(account, profile)
 

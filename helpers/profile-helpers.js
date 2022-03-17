@@ -162,7 +162,6 @@ exports.countConnectorActionsByType = function (cdhProfileData) {
     actionLookup[key][action.type][action.trigger]++
   })
 
-
   cdhProfileData.connectors.forEach(function (connector) {
     if (connector.enabled !== true) return // skip deactivated
     // connector.configurations.prod.forEach()
@@ -181,7 +180,6 @@ exports.countConnectorActionsByType = function (cdhProfileData) {
         output[key].action_counts[actionType][trigger]++
       })
     })
-
   })
   return output
 }
