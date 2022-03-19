@@ -228,3 +228,17 @@ exports.getMobileHtmlFileFromCdn = function (account, profile, environment) {
       })
   })
 }
+
+exports.getCdhProfile = function (account, profile, revision) {
+  'use strict'
+  return new Promise((resolve, reject) => {
+    const requestObject = tealiumCdnRequests.getCdhProfile(account, profile, revision)
+    axios(requestObject)
+      .then((responseString) => {
+        resolve(responseString)
+      })
+      .catch((error) => {
+        reject(error)
+      })
+  })
+}

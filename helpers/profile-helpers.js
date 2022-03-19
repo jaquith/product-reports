@@ -293,9 +293,16 @@ exports.checkForCmpExtensionInUtag = function (utag) {
   return checkForCodeSignatures(signatures, utagString)
 }
 
-exports.getDaysSinceVersion = function (versionString) {
+exports.getDaysSinceTiqVersion = function (versionString) {
   const formatted = `${versionString.slice(0, 4)}-${versionString.slice(4, 6)}-${versionString.slice(6, 8)}T${versionString.slice(8, 10)}:${versionString.slice(10, 12)}:00.000Z`
   const publishTime = new Date(formatted)
+  const now = new Date()
+  const daysSincePublish = Math.round((now - publishTime) / 86400000)
+  return daysSincePublish
+}
+
+exports.getDaysSinceCdhVersion = function (versionString) {
+  const publishTime = new Date(versionString)
   const now = new Date()
   const daysSincePublish = Math.round((now - publishTime) / 86400000)
   return daysSincePublish

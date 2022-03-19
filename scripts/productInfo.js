@@ -149,6 +149,10 @@ reportHandler({
     {
       name: 'cdh_profiles',
       definition: {
+
+        prod_version: DATABASE_TYPES.TEXT,
+        days_since_prod_publish: DATABASE_TYPES.TEXT,
+
         audienceStreamEnabled: DATABASE_TYPES.INTEGER,
         audienceStoreEnabled: DATABASE_TYPES.INTEGER,
         audienceDBEnabled: DATABASE_TYPES.INTEGER,
@@ -244,17 +248,17 @@ reportHandler({
     }
   ],
   getProfileData: false,
-  cacheRequests: true,
-  useRequestCache: true,
+  cacheRequests: false,
+  useRequestCache: false,
   retryErrors: false,
   dropDB: true,
   allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
-  // accountList: ['services-caleb', 'pro7']
+  //accountList: ['services-caleb', 'pro7', 'astrazeneca']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
   accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
-async function profileChecker ({ iQ, CDH, record, error, account, profile, resolve, reject }) {
+async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
   try {
     const volumes = await getVolumes(account, profile, iQ, CDH)
 
@@ -270,6 +274,16 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
     if (iqInProd === true) {
       // we only care about the latest production profile, NOT the latest profile save (which is what we start with)
       const profileData = await iQ.getProfile(account, profile)
+
+      const accountType = tealiumHelper.getAccountType(account)
+      const profileType = profileHelper.getProfileType(profileData)
+  
+      record('account_and_profile_types', {
+        account,
+        profile,
+        account_type: accountType,
+        profile_type: profileType
+      })
 
       const revisions = profileData.publish_history
       const revisionList = Object.keys(revisions).sort()
@@ -313,7 +327,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         account,
         profile,
         prod_version: prodVersion,
-        days_since_prod_publish: profileHelper.getDaysSinceVersion(prodVersion),
+        days_since_prod_publish: profileHelper.getDaysSinceTiqVersion(prodVersion),
 
         loader_30_days: iqVolumes30Days.loader,
         loader_180_days: iqVolumes180Days.loader,
@@ -392,16 +406,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
         })
       })
 
-      const accountType = tealiumHelper.getAccountType(account)
-      const profileType = profileHelper.getProfileType(profileData)
-
-      record('account_and_profile_types', {
-        account,
-        profile,
-        account_type: accountType,
-        profile_type: profileType
-      })
-
       record('all_products', {
         account,
         profile,
@@ -414,7 +418,14 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
     }
 
     if (cdhInProd === true) {
-      const cdhProfileData = await CDH.getProfile(account, profile)
+      let cdhProfileData = await CDH.getProfile(account, profile)
+      let prodRevision = cdhProfileData.version_info.revision
+
+      // go back to the latest published vesion (not just saved)
+      while (cdhProfileData.version_info.hasBeenPublished === false) {
+        prodRevision = cdhProfileData.previousVersionInfo.revision
+        cdhProfileData = await sessionRequest.get(`/urest/datacloud/${account}/${profile}/profile/revision/${prodRevision}`)
+      }
 
       const {
         accountEnabled,
@@ -440,6 +451,9 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, resol
       const cdhRecord = {
         account,
         profile,
+      
+        prod_version: prodRevision,
+        days_since_prod_publish: profileHelper.getDaysSinceCdhVersion(prodRevision),
 
         audienceStreamEnabled: boolToInt(accountEnabled),
         audienceDBEnabled: boolToInt(audienceDBEnabled),
