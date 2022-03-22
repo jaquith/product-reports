@@ -106,3 +106,6 @@ dist
 
 # Resources folder (dbs and request cache)
 resources
+
+# mac storage files
+.DS_Store
