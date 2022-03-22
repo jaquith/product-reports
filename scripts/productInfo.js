@@ -253,9 +253,9 @@ reportHandler({
   retryErrors: false,
   dropDB: true,
   allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
-  //accountList: ['services-caleb', 'pro7', 'astrazeneca']
+  // accountList: ['astrazeneca']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
+  // accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
