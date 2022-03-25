@@ -252,10 +252,10 @@ reportHandler({
   useRequestCache: false,
   retryErrors: false,
   dropDB: true,
-  allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
-  // accountList: ['astrazeneca']
+  allAccounts: true // 'true' disables the automatic filter to allow accurate account and profile counts
+  // accountList: ['abn-amro']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  // accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
+  // accountProfileList: [{ account: 'abn-amro', profile: 'udh-sandbox' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {

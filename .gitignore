@@ -109,3 +109,6 @@ resources
 
 # mac storage files
 .DS_Store
+
+# vscode configs
+.vscode

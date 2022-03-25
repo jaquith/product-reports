@@ -125,6 +125,7 @@ exports.countActiveTagsByTemplateId = function (profileData) {
 
 exports.countAttributesByType = function (cdhProfileData) {
   const output = {}
+  if (!cdhProfileData || !cdhProfileData.quantifiers) return output
   cdhProfileData.quantifiers.forEach(function (attr) {
     const key = `${attr.context} ${attr.type}`
     output[key] = output[key] || {}
@@ -149,6 +150,8 @@ exports.countAttributesByType = function (cdhProfileData) {
 
 exports.countConnectorActionsByType = function (cdhProfileData) {
   const output = {}
+  // the initial publish is sometimes missing these objects in older profiles
+  if (!cdhProfileData || !cdhProfileData.actions || !cdhProfileData.connectors) return output
 
   // make a lookup object to avoid looping every time
   const actionLookup = {}
@@ -172,7 +175,7 @@ exports.countConnectorActionsByType = function (cdhProfileData) {
     output[key].action_counts = output[key].action_counts || {}
     output[key].count++
 
-    const actions = actionLookup[connector.id]
+    const actions = actionLookup[connector.id] || {}
     Object.keys(actions).forEach(function (actionType) {
       output[key].action_counts[actionType] = output[key].action_counts[actionType] || {}
       Object.keys(actions[actionType]).forEach(function (trigger) {
