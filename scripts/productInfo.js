@@ -243,7 +243,8 @@ reportHandler({
         connector_type: DATABASE_TYPES.TEXT,
         action_type: DATABASE_TYPES.TEXT,
         trigger: DATABASE_TYPES.TEXT,
-        count: DATABASE_TYPES.INTEGER
+        count: DATABASE_TYPES.INTEGER,
+        count_enabled: DATABASE_TYPES.INTEGER
       }
     }
   ],
@@ -252,10 +253,10 @@ reportHandler({
   useRequestCache: false,
   retryErrors: false,
   dropDB: true,
-  allAccounts: true // 'true' disables the automatic filter to allow accurate account and profile counts
-  // accountList: ['abn-amro']
+  allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
+  accountList: ['abn-amro']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  // accountProfileList: [{ account: 'abn-amro', profile: 'udh-sandbox' }]
+  // accountProfileList: [{ account: 'abn-amro', profile: 'udh-production' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
@@ -277,7 +278,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
       const accountType = tealiumHelper.getAccountType(account)
       const profileType = profileHelper.getProfileType(profileData)
-  
+
       record('account_and_profile_types', {
         account,
         profile,
@@ -451,7 +452,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       const cdhRecord = {
         account,
         profile,
-      
+
         prod_version: prodRevision,
         days_since_prod_publish: profileHelper.getDaysSinceCdhVersion(prodRevision),
 
@@ -520,16 +521,17 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
       const connectorActionSummary = profileHelper.countConnectorActionsByType(cdhProfileData)
 
-      Object.keys(connectorActionSummary).forEach(function (key) {
-        Object.keys(connectorActionSummary[key].action_counts).forEach(function (action) {
-          Object.keys(connectorActionSummary[key].action_counts[action]).forEach(function (trigger) {
+      Object.keys(connectorActionSummary).forEach(function (connectorType) {
+        Object.keys(connectorActionSummary[connectorType].action_counts).forEach(function (action) {
+          Object.keys(connectorActionSummary[connectorType].action_counts[action]).forEach(function (trigger) {
             record('cdh_connector_actions_and_triggers_in_production', {
               account,
               profile,
-              connector_type: connectorActionSummary[key].type,
+              connector_type: connectorType,
               action_type: action,
               trigger: trigger,
-              count: connectorActionSummary[key].action_counts[action][trigger]
+              count: connectorActionSummary[connectorType].action_counts[action][trigger].count,
+              count_enabled: connectorActionSummary[connectorType].action_counts[action][trigger].count_enabled
             })
           })
         })

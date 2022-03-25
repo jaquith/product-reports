@@ -149,39 +149,46 @@ exports.countAttributesByType = function (cdhProfileData) {
 }
 
 exports.countConnectorActionsByType = function (cdhProfileData) {
+  const profileData = cdhProfileData || {}
   const output = {}
   // the initial publish is sometimes missing these objects in older profiles
-  if (!cdhProfileData || !cdhProfileData.actions || !cdhProfileData.connectors) return output
+  if (!profileData || !profileData.actions || !profileData.connectors) return output
+
+  function isParentConnectorEnabled (connectors, connectorId) {
+    connectors = connectors || []
+    const parentConnector = connectors.find((connector) => {
+      return connector.id === connectorId
+    })
+    return parentConnector.enabled === true
+  }
 
   // make a lookup object to avoid looping every time
   const actionLookup = {}
-  cdhProfileData.actions.forEach(function (action) {
-    if (action.enabled !== true) return // skip deactivated
-    // connector.configurations.prod.forEach()
+  for (let i = 0; i < cdhProfileData.actions.length; i++) {
+    const action = cdhProfileData.actions[i]
     const key = `${action.connectorId}`
     actionLookup[key] = actionLookup[key] || {}
     actionLookup[key][action.type] = actionLookup[key][action.type] || {}
-    actionLookup[key][action.type][action.trigger] = actionLookup[key][action.trigger] || 0
-    actionLookup[key][action.type][action.trigger]++
-  })
+    actionLookup[key][action.type][action.trigger] = actionLookup[key][action.type][action.trigger] || {
+      count: 0,
+      count_enabled: 0
+    }
+    actionLookup[key][action.type][action.trigger].count++
+    if (action.enabled === true && isParentConnectorEnabled(cdhProfileData.connectors, action.connectorId) === true) {
+      actionLookup[key][action.type][action.trigger].count_enabled++
+    }
+  }
 
   cdhProfileData.connectors.forEach(function (connector) {
-    if (connector.enabled !== true) return // skip deactivated
     // connector.configurations.prod.forEach()
     const key = `${connector.type}`
     output[key] = output[key] || {}
-    output[key].type = connector.type
-    output[key].count = output[key].count || 0
     output[key].action_counts = output[key].action_counts || {}
-    output[key].count++
-
     const actions = actionLookup[connector.id] || {}
     Object.keys(actions).forEach(function (actionType) {
       output[key].action_counts[actionType] = output[key].action_counts[actionType] || {}
-      Object.keys(actions[actionType]).forEach(function (trigger) {
-        output[key].action_counts[actionType][trigger] = output[key].action_counts[actionType][trigger] || 0
-        output[key].action_counts[actionType][trigger]++
-      })
+      output[key].action_counts[actionType] = output[key].action_counts[actionType] || {}
+      output[key].action_counts[actionType] = actions[actionType] || {}
     })
   })
   return output
