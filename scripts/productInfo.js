@@ -232,9 +232,16 @@ reportHandler({
       definition: {
         context: DATABASE_TYPES.TEXT,
         type: DATABASE_TYPES.TEXT,
+        count: DATABASE_TYPES.INTEGER,
         count_preloaded: DATABASE_TYPES.INTEGER,
         count_db_enabled: DATABASE_TYPES.INTEGER,
-        count: DATABASE_TYPES.INTEGER
+        count_used_in_enrichments: DATABASE_TYPES.INTEGER,
+        count_used_in_connectors: DATABASE_TYPES.INTEGER,
+        count_used_in_audiences: DATABASE_TYPES.INTEGER,
+        count_used_in_event_feeds: DATABASE_TYPES.INTEGER,
+        count_used_in_event_specs: DATABASE_TYPES.INTEGER,
+        count_used: DATABASE_TYPES.INTEGER,
+        count_unused: DATABASE_TYPES.INTEGER
       }
     },
     {
@@ -253,10 +260,10 @@ reportHandler({
   useRequestCache: false,
   retryErrors: false,
   dropDB: true,
-  allAccounts: true, // 'true' disables the automatic filter to allow accurate account and profile counts
-  accountList: ['abn-amro']
+  allAccounts: false, // 'true' disables the automatic filter to allow accurate account and profile counts
+  // accountList: ['abn-amro']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  // accountProfileList: [{ account: 'abn-amro', profile: 'udh-production' }]
+  accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
@@ -269,7 +276,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
     const cdhVolumes30Days = volumes.cdh['30days']
     const cdhVolumes180Days = volumes.cdh['180days']
 
-    const iqInProd = true // record all for now
+    const iqInProd = false // skip for now
     const cdhInProd = true // record all for now
 
     if (iqInProd === true) {
@@ -506,7 +513,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       }
       record('cdh_profiles', cdhRecord)
 
-      const attributeSummary = profileHelper.countAttributesByType(cdhProfileData)
+      const attributeSummary = profileHelper.summarizeAttributes(cdhProfileData)
       Object.keys(attributeSummary).forEach(function (key) {
         record('cdh_attributes_in_production', {
           account,
@@ -515,7 +522,14 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
           type: attributeSummary[key].type,
           count: attributeSummary[key].count,
           count_preloaded: attributeSummary[key].count_preloaded,
-          count_db_enabled: attributeSummary[key].count_db_enabled
+          count_db_enabled: attributeSummary[key].count_db_enabled,
+          count_used_in_enrichments: attributeSummary[key].count_used_in_enrichments,
+          count_used_in_connectors: attributeSummary[key].count_used_in_connectors,
+          count_used_in_audiences: attributeSummary[key].count_used_in_audiences,
+          count_used_in_event_feeds: attributeSummary[key].count_used_in_audiences,
+          count_used_in_event_specs: attributeSummary[key].count_used_in_event_specs,
+          count_used: attributeSummary[key].count_used,
+          count_unused: attributeSummary[key].count_unused
         })
       })
 

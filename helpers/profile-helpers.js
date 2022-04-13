@@ -123,10 +123,143 @@ exports.countActiveTagsByTemplateId = function (profileData) {
   return tagCounter
 }
 
-exports.countAttributesByType = function (cdhProfileData) {
+function normalizeKey (key) {
+  return String(key).split('.').slice(-1).join('')
+}
+
+function getAttributeKey (attr) {
+  let key = attr.id
+  if (attr.context === 'Event' && attr.dataSourceType !== 'tag') {
+    key = attr.eventKey || attr.name // use the eventKey if it's present
+  }
+  return normalizeKey(key)
+}
+
+function modelAttributeRelationships (cdhProfileData) {
+  const attributes = {}
+  const nameLookup = {}
+  const missing = []
+  // build
+  for (let i = 0; i < cdhProfileData.quantifiers.length; i++) {
+    const attr = cdhProfileData.quantifiers[i]
+    const adjustedId = getAttributeKey(attr)
+    // different parts of the system use either the event name OR number, so we need ways to look up everything
+    nameLookup[adjustedId] = String(attr.id)
+    nameLookup[String(adjustedId)] = String(attr.id)
+    nameLookup[String(attr.id)] = String(attr.id)
+
+    const key = `${attr.id}`
+    attributes[key] = attributes[key] || {}
+    attributes[key].id = attr.id
+    attributes[key].context = attr.context
+    attributes[key].type = attr.type
+    attributes[key].name = attr.name
+    attributes[key].dataSourceType = attr.dataSourceType
+    attributes[key].is_preloaded = (attr.preloaded === true) ? 1 : 0
+    attributes[key].is_db_enabled = ((attr.context === 'Event' && attr.eventDBEnabled === true) || ((attr.context === 'Visitor' || attr.context === 'Current Visit') && attr.audienceDBEnabled === true)) ? 1 : 0
+
+    attributes[key].upstream_attributes = {}
+    attributes[key].downstream_attributes = {}
+
+    attributes[key].audience_references = {}
+    attributes[key].event_feed_references = {}
+  }
+
+  // check enrichments for upstream and downstream
+  for (let i = 0; i < cdhProfileData.transformations.length; i++) {
+    const enrichment = cdhProfileData.transformations[i]
+
+    let destinationAttribute
+    const sourceAttributes = []
+    const keys = Object.keys(enrichment.actionData || {})
+
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i]
+      const attributeKey = normalizeKey(enrichment.actionData[key])
+      if (key === 'quantifierId') {
+        destinationAttribute = attributeKey
+      } else {
+        sourceAttributes.push(attributeKey)
+      }
+    }
+
+    for (let i = 0; i < sourceAttributes.length; i++) {
+      const sourceAttribute = sourceAttributes[i]
+      if (!sourceAttribute) continue
+      const source = nameLookup[sourceAttribute]
+      const dest = nameLookup[destinationAttribute]
+      if (!attributes[source]) {
+        missing.push(sourceAttribute)
+        continue
+      }
+      if (!attributes[dest]) {
+        missing.push(destinationAttribute)
+        continue
+      }
+      attributes[dest].upstream_attributes[source] = true
+      attributes[source].downstream_attributes[dest] = true
+    }
+  }
+
+  const audiences = Object.keys(cdhProfileData.audiences || {})
+  for (let i = 0; i < audiences.length; i++) {
+    const audienceId = audiences[i]
+    const audienceInfo = cdhProfileData.audiences[audienceId]
+    const logic = JSON.parse(audienceInfo.logic)
+    for (let j = 0; j < logic.$or.length; j++) { // for each OR block
+      for (let k = 0; k < logic.$or[j].$and.length; k++) { // for each AND block in the OR block
+        const logicBlock = logic.$or[j].$and[k]
+        const references = Object.values(logicBlock)
+        for (let l = 0; l < references.length; l++) {
+          const ref = references[l]
+          if (typeof ref === 'string' && /.+\.[0-9]+/.test(ref)) { // recognized based on format, like 'secondary_ids.5044'
+            const referencedAttribute = nameLookup[normalizeKey(ref)]
+            if (!attributes[referencedAttribute]) {
+              missing.push(referencedAttribute)
+              continue
+            }
+            attributes[referencedAttribute].audience_references[audienceId] = true
+          }
+        }
+      }
+    }
+  }
+
+  const eventFeeds = cdhProfileData.archivedFilteredStreams || []
+  for (let i = 0; i < eventFeeds.length; i++) {
+    const feedInfo = eventFeeds[i]
+    const logic = JSON.parse(feedInfo.logic)
+    if (!logic.$or) continue // all_events feed has no
+    for (let j = 0; j < logic.$or.length; j++) { // for each OR block
+      for (let k = 0; k < logic.$or[j].$and.length; k++) { // for each AND block in the OR block
+        const logicBlock = logic.$or[j].$and[k]
+        const references = Object.values(logicBlock)
+        for (let l = 0; l < references.length; l++) {
+          const ref = references[l]
+          if (typeof ref === 'string' && /.+\..+/.test(ref)) { // recognized based on format, like 'secondary_ids.5044'
+            const referencedAttribute = nameLookup[normalizeKey(ref)]
+            if (!attributes[referencedAttribute]) {
+              missing.push(referencedAttribute)
+              continue
+            }
+            attributes[referencedAttribute].event_feed_references[feedInfo.id] = true
+          }
+        }
+      }
+    }
+  }
+
+  return attributes
+}
+
+exports.summarizeAttributes = function (cdhProfileData) {
   const output = {}
   if (!cdhProfileData || !cdhProfileData.quantifiers) return output
-  cdhProfileData.quantifiers.forEach(function (attr) {
+
+  const model = modelAttributeRelationships(cdhProfileData)
+  const attributes = Object.keys(model)
+  for (let i = 0; i < attributes.length; i++) {
+    const attr = model[attributes[i]]
     const key = `${attr.context} ${attr.type}`
     output[key] = output[key] || {}
     output[key].context = attr.context
@@ -134,17 +267,40 @@ exports.countAttributesByType = function (cdhProfileData) {
     output[key].count = output[key].count || 0
     output[key].count_preloaded = output[key].count_preloaded || 0
     output[key].count_db_enabled = output[key].count_db_enabled || 0
+
+    output[key].count_used_in_enrichments = output[key].count_used_in_enrichments || 0
+    output[key].count_used_in_audiences = output[key].count_used_in_audience || 0
+    output[key].count_used_in_event_feeds = output[key].count_used_in_event_feeds || 0
+
+    // TODO
+    // output[key].count_used_in_connectors = output[key].count_used_in_connectors || 0
+    // output[key].count_used_in_event_specs = output[key].count_used_in_event_specs || 0
+    // output[key].count_used = output[key].count_used || 0
+    // output[key].count_unused = output[key].count_unused || 0
+
     output[key].count++
 
-    if (attr.preloaded === true) {
+    if (attr.is_preloaded === 1) {
       output[key].count_preloaded++
     }
 
-    if ((attr.context === 'Event' && attr.eventDBEnabled === true) ||
-        ((attr.context === 'Visitor' || attr.context === 'Current Visit') && attr.audienceDBEnabled === true)) {
+    if (attr.is_db_enabled === 1) {
       output[key].count_db_enabled++
     }
-  })
+
+    if ((Object.keys(attr.downstream_attributes).length + Object.keys(attr.upstream_attributes).length) !== 0) {
+      output[key].count_used_in_enrichments++
+    }
+
+    if ((Object.keys(attr.audience_references).length) !== 0) {
+      output[key].count_used_in_audiences++
+    }
+
+    if ((Object.keys(attr.event_feed_references).length) !== 0) {
+      output[key].count_used_in_event_feeds++
+    }
+  }
+
   return output
 }
 
