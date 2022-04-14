@@ -251,6 +251,7 @@ function modelAttributeRelationships (cdhProfileData) {
 
   return attributes
 }
+exports.modelAttributeRelationships = modelAttributeRelationships
 
 exports.summarizeAttributes = function (cdhProfileData) {
   const output = {}

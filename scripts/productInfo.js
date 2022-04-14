@@ -216,6 +216,21 @@ reportHandler({
       }
     },
     {
+      name: 'cdh_attributes_in_production_detailed',
+      definition: {
+        name: DATABASE_TYPES.TEXT,
+        context: DATABASE_TYPES.TEXT,
+        type: DATABASE_TYPES.TEXT,
+        is_preloaded: DATABASE_TYPES.INTEGER,
+        is_db_enabled: DATABASE_TYPES.INTEGER,
+        is_used_in_enrichments: DATABASE_TYPES.INTEGER,
+        is_used_in_connectors: DATABASE_TYPES.INTEGER,
+        is_used_in_audiences: DATABASE_TYPES.INTEGER,
+        is_used_in_event_feeds: DATABASE_TYPES.INTEGER,
+        is_used_in_event_specs: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
       name: 'all_products',
       definition: {
         product_name: DATABASE_TYPES.TEXT,
@@ -524,6 +539,24 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         // cdhEntry: JSON.stringify(cdhProfileData)
       }
       record('cdh_profiles', cdhRecord)
+
+      const attributeDetails = profileHelper.modelAttributeRelationships(cdhProfileData)
+      Object.keys(attributeDetails).forEach(function (key) {
+        record('cdh_attributes_in_production_detailed', {
+          account,
+          profile,
+          name: attributeDetails[key].name,
+          context: attributeDetails[key].context,
+          type: attributeDetails[key].type,
+          is_preloaded: attributeDetails[key].is_preloaded,
+          is_db_enabled: attributeDetails[key].is_db_enabled,
+          is_used_in_enrichments: (Object.keys(attributeDetails[key].downstream_attributes).length + Object.keys(attributeDetails[key].upstream_attributes).length) !== 0 ? 1 : 0,
+          is_used_in_connectors: undefined, // TODO
+          is_used_in_audiences: Object.keys(attributeDetails[key].audience_references).length !== 0 ? 1 : 0,
+          is_used_in_event_feeds: Object.keys(attributeDetails[key].event_feed_references).length !== 0 ? 1 : 0,
+          is_used_in_event_specs: undefined // TODO
+        })
+      })
 
       const attributeSummary = profileHelper.summarizeAttributes(cdhProfileData)
       Object.keys(attributeSummary).forEach(function (key) {
