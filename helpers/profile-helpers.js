@@ -275,8 +275,6 @@ exports.summarizeAttributes = function (cdhProfileData) {
     // TODO
     // output[key].count_used_in_connectors = output[key].count_used_in_connectors || 0
     // output[key].count_used_in_event_specs = output[key].count_used_in_event_specs || 0
-    // output[key].count_used = output[key].count_used || 0
-    // output[key].count_unused = output[key].count_unused || 0
 
     output[key].count++
 

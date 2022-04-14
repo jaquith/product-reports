@@ -157,6 +157,9 @@ reportHandler({
         prod_version: DATABASE_TYPES.TEXT,
         days_since_prod_publish: DATABASE_TYPES.TEXT,
 
+        audience_count: DATABASE_TYPES.INTEGER,
+        event_feed_count: DATABASE_TYPES.INTEGER,
+
         audienceStreamEnabled: DATABASE_TYPES.INTEGER,
         audienceStoreEnabled: DATABASE_TYPES.INTEGER,
         audienceDBEnabled: DATABASE_TYPES.INTEGER,
@@ -167,8 +170,6 @@ reportHandler({
         dataAccessDBExpirationDays: DATABASE_TYPES.INTEGER,
         eventStoreRetentionDays: DATABASE_TYPES.INTEGER,
         visitorRetentionDays: DATABASE_TYPES.INTEGER,
-
-        audienceCount: DATABASE_TYPES.INTEGER,
 
         volume_all_inbound_events_30_days: DATABASE_TYPES.INTEGER,
         volume_audiencedb_visitors_30_days: DATABASE_TYPES.INTEGER,
@@ -245,9 +246,7 @@ reportHandler({
         count_used_in_connectors: DATABASE_TYPES.INTEGER,
         count_used_in_audiences: DATABASE_TYPES.INTEGER,
         count_used_in_event_feeds: DATABASE_TYPES.INTEGER,
-        count_used_in_event_specs: DATABASE_TYPES.INTEGER,
-        count_used: DATABASE_TYPES.INTEGER,
-        count_unused: DATABASE_TYPES.INTEGER
+        count_used_in_event_specs: DATABASE_TYPES.INTEGER
       }
     },
     {
@@ -464,6 +463,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
       const audienceCount = Object.keys(cdhProfileData.audiences || {}).length
 
+      const eventFeedCount = (cdhProfileData.archivedFilteredStreams && cdhProfileData.archivedFilteredStreams.length) || 0
+
       const cdhRecord = {
         account,
         profile,
@@ -483,7 +484,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         eventStoreRetentionDays: eventStoreRetentionDays,
         visitorRetentionDays: visitorRetentionDays,
 
-        audienceCount: audienceCount,
+        audience_count: audienceCount,
+        event_feed_count: eventFeedCount,
 
         volume_all_inbound_events_30_days: cdhVolumes30Days.all_inbound_events,
         volume_audiencedb_visitors_30_days: cdhVolumes30Days.audiencedb_visitors,
@@ -537,9 +539,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
           count_used_in_connectors: attributeSummary[key].count_used_in_connectors,
           count_used_in_audiences: attributeSummary[key].count_used_in_audiences,
           count_used_in_event_feeds: attributeSummary[key].count_used_in_event_feeds,
-          count_used_in_event_specs: attributeSummary[key].count_used_in_event_specs,
-          count_used: attributeSummary[key].count_used,
-          count_unused: attributeSummary[key].count_unused
+          count_used_in_event_specs: attributeSummary[key].count_used_in_event_specs
         })
       })
 
