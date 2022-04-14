@@ -168,6 +168,8 @@ reportHandler({
         eventStoreRetentionDays: DATABASE_TYPES.INTEGER,
         visitorRetentionDays: DATABASE_TYPES.INTEGER,
 
+        audienceCount: DATABASE_TYPES.INTEGER,
+
         volume_all_inbound_events_30_days: DATABASE_TYPES.INTEGER,
         volume_audiencedb_visitors_30_days: DATABASE_TYPES.INTEGER,
         volume_audiencestore_visitors_30_days: DATABASE_TYPES.INTEGER,
@@ -460,6 +462,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         return theBool ? 1 : 0
       }
 
+      const audienceCount = Object.keys(cdhProfileData.audiences || {}).length
+
       const cdhRecord = {
         account,
         profile,
@@ -478,6 +482,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         dataAccessDBExpirationDays: dataAccessDBExpirationDays || 90,
         eventStoreRetentionDays: eventStoreRetentionDays,
         visitorRetentionDays: visitorRetentionDays,
+
+        audienceCount: audienceCount,
 
         volume_all_inbound_events_30_days: cdhVolumes30Days.all_inbound_events,
         volume_audiencedb_visitors_30_days: cdhVolumes30Days.audiencedb_visitors,
