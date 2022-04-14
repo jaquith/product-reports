@@ -152,7 +152,7 @@ function modelAttributeRelationships (cdhProfileData) {
     attributes[key] = attributes[key] || {}
     attributes[key].id = attr.id
     attributes[key].context = attr.context
-    attributes[key].type = attr.type
+    attributes[key].type = attr.type.replace(/^visitor_/, '')
     attributes[key].name = attr.name
     attributes[key].dataSourceType = attr.dataSourceType
     attributes[key].is_preloaded = (attr.preloaded === true) ? 1 : 0
@@ -269,7 +269,7 @@ exports.summarizeAttributes = function (cdhProfileData) {
     output[key].count_db_enabled = output[key].count_db_enabled || 0
 
     output[key].count_used_in_enrichments = output[key].count_used_in_enrichments || 0
-    output[key].count_used_in_audiences = output[key].count_used_in_audience || 0
+    output[key].count_used_in_audiences = output[key].count_used_in_audiences || 0
     output[key].count_used_in_event_feeds = output[key].count_used_in_event_feeds || 0
 
     // TODO
@@ -292,11 +292,11 @@ exports.summarizeAttributes = function (cdhProfileData) {
       output[key].count_used_in_enrichments++
     }
 
-    if ((Object.keys(attr.audience_references).length) !== 0) {
+    if (Object.keys(attr.audience_references).length !== 0) {
       output[key].count_used_in_audiences++
     }
 
-    if ((Object.keys(attr.event_feed_references).length) !== 0) {
+    if (Object.keys(attr.event_feed_references).length !== 0) {
       output[key].count_used_in_event_feeds++
     }
   }

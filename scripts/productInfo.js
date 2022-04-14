@@ -51,6 +51,8 @@ async function getVolumes (account, profile, iQ, CDH) {
     }
   }
 
+  /*
+
   try {
     volumes.iq['30days'] = await tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 30)
     volumes.iq['180days'] = await tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 180)
@@ -70,6 +72,8 @@ async function getVolumes (account, profile, iQ, CDH) {
       console.log(e)
     }
   }
+
+  */
 
   return volumes
 }
@@ -526,7 +530,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
           count_used_in_enrichments: attributeSummary[key].count_used_in_enrichments,
           count_used_in_connectors: attributeSummary[key].count_used_in_connectors,
           count_used_in_audiences: attributeSummary[key].count_used_in_audiences,
-          count_used_in_event_feeds: attributeSummary[key].count_used_in_audiences,
+          count_used_in_event_feeds: attributeSummary[key].count_used_in_event_feeds,
           count_used_in_event_specs: attributeSummary[key].count_used_in_event_specs,
           count_used: attributeSummary[key].count_used,
           count_unused: attributeSummary[key].count_unused
