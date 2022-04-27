@@ -155,6 +155,8 @@ reportHandler({
 
         audience_count: DATABASE_TYPES.INTEGER,
         event_feed_count: DATABASE_TYPES.INTEGER,
+        event_spec_count: DATABASE_TYPES.INTEGER,
+        connector_action_count: DATABASE_TYPES.INTEGER,
 
         audienceStreamEnabled: DATABASE_TYPES.INTEGER,
         audienceStoreEnabled: DATABASE_TYPES.INTEGER,
@@ -490,9 +492,15 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         return theBool ? 1 : 0
       }
 
-      const audienceCount = Object.keys(cdhProfileData.audiences || {}).length
+      const attributeModel = profileHelper.modelAttributeRelationships(cdhProfileData)
+      const activationSummaryAndAugumentedAttributeDetails = profileHelper.summarizeActivations(cdhProfileData, attributeModel)
+      const attributeDetails = activationSummaryAndAugumentedAttributeDetails.attributeDetails
+      const activationSummary = activationSummaryAndAugumentedAttributeDetails.activations
 
+      const audienceCount = Object.keys(cdhProfileData.audiences || {}).length
       const eventFeedCount = (cdhProfileData.archivedFilteredStreams && cdhProfileData.archivedFilteredStreams.length) || 0
+      const eventSpecCount = (cdhProfileData.eventDefinitions && cdhProfileData.eventDefinitions.length) || 0
+      const connectorActionCount = Object.keys(activationSummary || {}).length
 
       const cdhRecord = {
         account,
@@ -515,6 +523,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
         audience_count: audienceCount,
         event_feed_count: eventFeedCount,
+        event_spec_count: eventSpecCount,
+        connector_action_count: connectorActionCount,
 
         volume_all_inbound_events_30_days: cdhVolumes30Days.all_inbound_events,
         volume_audiencedb_visitors_30_days: cdhVolumes30Days.audiencedb_visitors,
@@ -554,10 +564,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       }
       record('cdh_profiles', cdhRecord)
 
-      const attributeModel = profileHelper.modelAttributeRelationships(cdhProfileData)
-      const activationSummaryAndAugumentedAttributeDetails = profileHelper.summarizeActivations(cdhProfileData, attributeModel)
-      const attributeDetails = activationSummaryAndAugumentedAttributeDetails.attributeDetails
-      const activationSummary = activationSummaryAndAugumentedAttributeDetails.activations
       Object.keys(activationSummary).forEach((id) => {
         record('activations', {
           account,
