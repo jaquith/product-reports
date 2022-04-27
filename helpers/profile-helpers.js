@@ -135,18 +135,26 @@ function getAttributeKey (attr) {
   return normalizeKey(key)
 }
 
-function modelAttributeRelationships (cdhProfileData) {
-  const attributes = {}
-  const nameLookup = {}
-  const missing = []
-  // build
+function getAttributeIdLookup (cdhProfileData) {
+  const lookup = {}
   for (let i = 0; i < cdhProfileData.quantifiers.length; i++) {
     const attr = cdhProfileData.quantifiers[i]
     const adjustedId = getAttributeKey(attr)
     // different parts of the system use either the event name OR number, so we need ways to look up everything
-    nameLookup[adjustedId] = String(attr.id)
-    nameLookup[String(adjustedId)] = String(attr.id)
-    nameLookup[String(attr.id)] = String(attr.id)
+    lookup[adjustedId] = String(attr.id)
+    lookup[String(adjustedId)] = String(attr.id)
+    lookup[String(attr.id)] = String(attr.id)
+  }
+  return lookup
+}
+
+function modelAttributeRelationships (cdhProfileData) {
+  const attributes = {}
+  const nameLookup = getAttributeIdLookup(cdhProfileData)
+  const missing = []
+  // build
+  for (let i = 0; i < cdhProfileData.quantifiers.length; i++) {
+    const attr = cdhProfileData.quantifiers[i]
 
     const key = `${attr.id}`
     attributes[key] = attributes[key] || {}
@@ -163,6 +171,8 @@ function modelAttributeRelationships (cdhProfileData) {
 
     attributes[key].audience_references = {}
     attributes[key].event_feed_references = {}
+    attributes[key].connector_mappings = {}
+    attributes[key].event_spec_references = {}
   }
 
   // check enrichments for upstream and downstream
@@ -186,6 +196,7 @@ function modelAttributeRelationships (cdhProfileData) {
     for (let i = 0; i < sourceAttributes.length; i++) {
       const sourceAttribute = sourceAttributes[i]
       if (!sourceAttribute) continue
+
       const source = nameLookup[sourceAttribute]
       const dest = nameLookup[destinationAttribute]
       if (!attributes[source]) {
@@ -196,8 +207,11 @@ function modelAttributeRelationships (cdhProfileData) {
         missing.push(destinationAttribute)
         continue
       }
-      attributes[dest].upstream_attributes[source] = true
-      attributes[source].downstream_attributes[dest] = true
+      attributes[dest].upstream_attributes[source] = attributes[dest].upstream_attributes[source] || 0
+      attributes[dest].upstream_attributes[source]++
+
+      attributes[source].downstream_attributes[dest] = attributes[source].downstream_attributes[dest] || 0
+      attributes[source].downstream_attributes[dest]++
     }
   }
 
@@ -218,12 +232,26 @@ function modelAttributeRelationships (cdhProfileData) {
               missing.push(referencedAttribute)
               continue
             }
-            attributes[referencedAttribute].audience_references[audienceId] = true
+            attributes[referencedAttribute].audience_references[audienceId] = attributes[referencedAttribute].audience_references[audienceId] || 0
+            attributes[referencedAttribute].audience_references[audienceId]++
           }
         }
       }
     }
   }
+
+  const eventSpecs = cdhProfileData.eventDefinitions || []
+  eventSpecs.forEach((spec) => {
+    spec.eventAttributes.forEach((attrInfo) => {
+      const referencedAttribute = nameLookup[normalizeKey(attrInfo.attribute)]
+      attributes[referencedAttribute].event_spec_references[spec.tealiumEvent] = attributes[referencedAttribute].event_spec_references[spec.tealiumEvent] || 0
+      attributes[referencedAttribute].event_spec_references[spec.tealiumEvent]++
+      // always increment tealium_event, since it's involved in each event spec
+      const tealiumEvent = nameLookup.tealium_event
+      attributes[tealiumEvent].event_spec_references[spec.tealiumEvent] = attributes[tealiumEvent].event_spec_references[spec.tealiumEvent] || 0
+      attributes[tealiumEvent].event_spec_references[spec.tealiumEvent]++
+    })
+  })
 
   const eventFeeds = cdhProfileData.archivedFilteredStreams || []
   for (let i = 0; i < eventFeeds.length; i++) {
@@ -274,7 +302,7 @@ exports.summarizeAttributes = function (cdhProfileData) {
     output[key].count_used_in_event_feeds = output[key].count_used_in_event_feeds || 0
 
     // TODO
-    // output[key].count_used_in_connectors = output[key].count_used_in_connectors || 0
+    output[key].count_used_in_connectors = output[key].count_used_in_connectors || 0
     // output[key].count_used_in_event_specs = output[key].count_used_in_event_specs || 0
 
     output[key].count++
@@ -301,6 +329,113 @@ exports.summarizeAttributes = function (cdhProfileData) {
   }
 
   return output
+}
+
+exports.summarizeActivations = function (cdhProfileData, attributeDetails) {
+  const profileData = cdhProfileData || {}
+  const activations = {}
+  const nameLookup = getAttributeIdLookup(cdhProfileData)
+
+  // the initial publish is sometimes missing these objects in older profiles
+  if (!profileData) return {}
+
+  Object.keys(profileData.audiences || {}).forEach((audienceId) => {
+    const audienceInfo = profileData.audiences[audienceId]
+    activations[audienceId] = {
+      type: 'audience_connector_action',
+      logic: audienceInfo.logic,
+      name: audienceInfo.name,
+      visitor_retention_days: audienceInfo.visitorRetentionDays,
+      active_connector_actions: [],
+      attribute_references: {},
+      mapped_attributes: {}
+    }
+  })
+
+  profileData.archivedFilteredStreams && profileData.archivedFilteredStreams.forEach((feedInfo) => {
+    activations[feedInfo.id] = {
+      type: 'event_connector_action',
+      logic: feedInfo.logic,
+      name: feedInfo.name,
+      visitor_retention_days: undefined,
+      active_connector_actions: [],
+      attribute_references: {},
+      mapped_attributes: {}
+    }
+  })
+
+  profileData.jobs && profileData.jobs.forEach((jobInfo) => {
+    activations[jobInfo.id] = {
+      type: 'job',
+      logic: jobInfo.logic,
+      name: jobInfo.name,
+      visitor_retention_days: undefined,
+      active_connector_actions: [],
+      attribute_references: {},
+      mapped_attributes: {}
+    }
+  })
+
+  // make a lookup object to avoid looping every time
+  const actionLookup = {}
+  for (let i = 0; i < (cdhProfileData.actions || []).length; i++) {
+    const action = cdhProfileData.actions[i]
+    const key = `${action.connectorId}`
+    actionLookup[key] = actionLookup[key] || {}
+    actionLookup[key][action.type] = actionLookup[key][action.type] || {}
+    actionLookup[key][action.type][action.trigger] = actionLookup[key][action.type][action.trigger] || {
+      count: 0,
+      count_enabled: 0
+    }
+    actionLookup[key][action.type][action.trigger].count++
+    if (action.enabled === true && isParentConnectorEnabled(cdhProfileData.connectors, action.connectorId) === true) {
+      actionLookup[key][action.type][action.trigger].count_enabled++
+      action.source && activations[action.source.id] && activations[action.source.id].active_connector_actions.push(action.id)
+      Object.keys(action.configurations.prod.parameters).forEach((sectionId) => {
+        const section = action.configurations.prod.parameters[sectionId]
+        Object.keys(section.values).forEach((valueId) => {
+          // find variables that should be resolved (not hardcoded) - these are the mappings
+          // NOTE that this doesn't account for connector actions that send raw events / visitor profiles (Webhook, SQS, others...)
+          if (section.values[valueId] && section.values[valueId].map_value && section.values[valueId].map_value.resolve) {
+            const attributeIdReferenced = nameLookup[normalizeKey(section.values[valueId].map_value.value)]
+            if (action.source.id) { // sometimes this is '' in very old profiles
+              activations[action.source.id].mapped_attributes[attributeIdReferenced] = activations[action.source.id].mapped_attributes[attributeIdReferenced] || 0
+              activations[action.source.id].mapped_attributes[attributeIdReferenced]++
+            }
+
+            attributeDetails[attributeIdReferenced].connector_mappings[action.id] = attributeDetails[attributeIdReferenced].connector_mappings[action.id] || 0
+            attributeDetails[attributeIdReferenced].connector_mappings[action.id]++
+          }
+        })
+      })
+    }
+  }
+
+  Object.keys(attributeDetails).forEach((attrId) => {
+    const attrInfo = attributeDetails[attrId]
+    Object.keys(attrInfo.audience_references).forEach((audienceId) => {
+      activations[audienceId].attribute_references[attrId] = activations[audienceId].attribute_references[attrId] || 0
+      activations[audienceId].attribute_references[attrId]++
+    })
+
+    Object.keys(attrInfo.event_feed_references).forEach((feedId) => {
+      activations[feedId].attribute_references[attrId] = activations[feedId].attribute_references[attrId] || 0
+      activations[feedId].attribute_references[attrId]++
+    })
+  })
+
+  return {
+    activations: activations,
+    attributeDetails: attributeDetails
+  }
+
+  function isParentConnectorEnabled (connectors, connectorId) {
+    connectors = connectors || []
+    const parentConnector = connectors.find((connector) => {
+      return connector.id === connectorId
+    })
+    return parentConnector.enabled === true
+  }
 }
 
 exports.countConnectorActionsByType = function (cdhProfileData) {

@@ -51,8 +51,6 @@ async function getVolumes (account, profile, iQ, CDH) {
     }
   }
 
-  /*
-
   try {
     volumes.iq['30days'] = await tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 30)
     volumes.iq['180days'] = await tealiumHelper.getVolumesForRollingPeriod(account, profile, iQ.getReportingData, 180)
@@ -72,8 +70,6 @@ async function getVolumes (account, profile, iQ, CDH) {
       console.log(e)
     }
   }
-
-  */
 
   return volumes
 }
@@ -219,15 +215,17 @@ reportHandler({
       name: 'cdh_attributes_in_production_detailed',
       definition: {
         name: DATABASE_TYPES.TEXT,
+        id: DATABASE_TYPES.TEXT,
         context: DATABASE_TYPES.TEXT,
         type: DATABASE_TYPES.TEXT,
         is_preloaded: DATABASE_TYPES.INTEGER,
         is_db_enabled: DATABASE_TYPES.INTEGER,
-        is_used_in_enrichments: DATABASE_TYPES.INTEGER,
-        is_used_in_connectors: DATABASE_TYPES.INTEGER,
-        is_used_in_audiences: DATABASE_TYPES.INTEGER,
-        is_used_in_event_feeds: DATABASE_TYPES.INTEGER,
-        is_used_in_event_specs: DATABASE_TYPES.INTEGER
+        enriched_downstream_attributes: DATABASE_TYPES.INTEGER,
+        enriched_upstream_attributes: DATABASE_TYPES.INTEGER,
+        audiences_referencing: DATABASE_TYPES.INTEGER,
+        event_feeds_referencing: DATABASE_TYPES.INTEGER,
+        connectors_referencing: DATABASE_TYPES.INTEGER,
+        event_specs_referencing: DATABASE_TYPES.INTEGER
       }
     },
     {
@@ -238,6 +236,20 @@ reportHandler({
         retention_days: DATABASE_TYPES.INTEGER,
         volume_30_days: DATABASE_TYPES.INTEGER,
         volume_180_days: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
+      name: 'activations',
+      definition: {
+        id: DATABASE_TYPES.TEXT,
+        name: DATABASE_TYPES.TEXT,
+        type: DATABASE_TYPES.TEXT,
+        activation_count: DATABASE_TYPES.INTEGER,
+        activation_ids: DATABASE_TYPES.TEXT,
+        referenced_attribute_count: DATABASE_TYPES.INTEGER,
+        referenced_attribute_ids: DATABASE_TYPES.TEXT,
+        mapped_attribute_count: DATABASE_TYPES.INTEGER,
+        mapped_attribute_ids: DATABASE_TYPES.TEXT
       }
     },
     {
@@ -281,9 +293,11 @@ reportHandler({
   retryErrors: false,
   dropDB: true,
   allAccounts: false, // 'true' disables the automatic filter to allow accurate account and profile counts
+  // accountList: ['1und1', 'pro7', 'abn-amro', 'tealium', 'royalmail']
   // accountList: ['abn-amro']
-  // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup']
-  accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
+  accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup', 'abn-amro']
+  // accountProfileList: [{ account: 'axelspringer', profile: 'ikiosk' }]
+  // accountProfileList: [{ account: 'tealium-solutions', profile: 'test-example' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
@@ -296,7 +310,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
     const cdhVolumes30Days = volumes.cdh['30days']
     const cdhVolumes180Days = volumes.cdh['180days']
 
-    const iqInProd = false // skip for now
+    const iqInProd = false // skip for now to save time and generate fewer CDN hits (false volume)
     const cdhInProd = true // record all for now
 
     if (iqInProd === true) {
@@ -540,21 +554,43 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       }
       record('cdh_profiles', cdhRecord)
 
-      const attributeDetails = profileHelper.modelAttributeRelationships(cdhProfileData)
+      const attributeModel = profileHelper.modelAttributeRelationships(cdhProfileData)
+      const activationSummaryAndAugumentedAttributeDetails = profileHelper.summarizeActivations(cdhProfileData, attributeModel)
+      const attributeDetails = activationSummaryAndAugumentedAttributeDetails.attributeDetails
+      const activationSummary = activationSummaryAndAugumentedAttributeDetails.activations
+      Object.keys(activationSummary).forEach((id) => {
+        record('activations', {
+          account,
+          profile,
+          id: id,
+          type: activationSummary[id].type,
+          name: activationSummary[id].name,
+          // logic: activationSummary[id].logic,
+          activation_count: activationSummary[id].active_connector_actions.length,
+          activation_ids: '|' + activationSummary[id].active_connector_actions.join('|') + '|',
+          referenced_attribute_count: Object.keys(activationSummary[id].attribute_references).length,
+          referenced_attribute_ids: '|' + Object.keys(activationSummary[id].attribute_references).join('|') + '|',
+          mapped_attribute_count: Object.keys(activationSummary[id].mapped_attributes).length,
+          mapped_attribute_ids: '|' + Object.keys(activationSummary[id].mapped_attributes).join('|') + '|'
+        })
+      })
+
       Object.keys(attributeDetails).forEach(function (key) {
         record('cdh_attributes_in_production_detailed', {
           account,
           profile,
           name: attributeDetails[key].name,
+          id: key,
           context: attributeDetails[key].context,
           type: attributeDetails[key].type,
           is_preloaded: attributeDetails[key].is_preloaded,
           is_db_enabled: attributeDetails[key].is_db_enabled,
-          is_used_in_enrichments: (Object.keys(attributeDetails[key].downstream_attributes).length + Object.keys(attributeDetails[key].upstream_attributes).length) !== 0 ? 1 : 0,
-          is_used_in_connectors: undefined, // TODO
-          is_used_in_audiences: Object.keys(attributeDetails[key].audience_references).length !== 0 ? 1 : 0,
-          is_used_in_event_feeds: Object.keys(attributeDetails[key].event_feed_references).length !== 0 ? 1 : 0,
-          is_used_in_event_specs: undefined // TODO
+          enriched_downstream_attributes: Object.keys(attributeDetails[key].downstream_attributes).length || 0,
+          enriched_upstream_attributes: Object.keys(attributeDetails[key].upstream_attributes).length || 0,
+          audiences_referencing: Object.keys(attributeDetails[key].audience_references).length || 0,
+          event_feeds_referencing: Object.keys(attributeDetails[key].event_feed_references).length || 0,
+          connectors_referencing: Object.keys(attributeDetails[key].connector_mappings).length || 0,
+          event_specs_referencing: Object.keys(attributeDetails[key].event_spec_references).length || 0
         })
       })
 
@@ -577,7 +613,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       })
 
       const connectorActionSummary = profileHelper.countConnectorActionsByType(cdhProfileData)
-
       Object.keys(connectorActionSummary).forEach(function (connectorType) {
         Object.keys(connectorActionSummary[connectorType].action_counts).forEach(function (action) {
           Object.keys(connectorActionSummary[connectorType].action_counts[action]).forEach(function (trigger) {
@@ -639,7 +674,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         profile,
         product_name: 'AudienceStore',
         enabled: cdhRecord.audienceStoreEnabled,
-        retention_days: undefined,
+        retention_days: cdhRecord.visitorRetentionDays, // AudienceStore uses the AudienceStream retetion time - no separate setting
         volume_30_days: cdhRecord.volume_audiencestore_visitors_30_days,
         volume_180_days: cdhRecord.volume_audiencestore_visitors_180_days
       })
@@ -670,45 +705,3 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
     reject(e)
   }
 }
-
-/*
-const extensionNamesById = {
-  // standard
-  100001: "Lowercasing",
-  100003: "Set Data Values",
-  100004: "Persist Data Value",
-  100013: "Previous Page",
-  100002: "Join Data Values",
-  100037: "Hosted Data Layer"
-  100020: "Lookup Table",
-  100025: "Pathname Tokenizer",
-  100033: "Crypto Extension",
-  // advanced
-  100005: "Ecommerce",
-  100006: "Domain-Based Deployment",
-  100007: "Channels",
-  100036: "Javascript Code",
-  100040: "Advanced Javascript Code",
-  100041: "View-Through Tracking",
-  100042: "China CDN Deployment"
-  100016: "Content Modification",
-  100035: "Modal Offer",
-  100021: "Flatten JSON Objects",
-  100018: "Data Validation",
-  100018: "Split Segmentation",
-  // events
-  100015: "Link Tracking",
-  100029: "jQuery clickHandler (1.6 and below)",
-  100032: "jQuery clickHandler (1.7 and above)",
-  100039: "Tealium Events",
-  // tag-specific
-  100038: "Adobe Target Tag Content Modification",
-  100031: "Currency Converter",
-  // privacy
-  100022: "Tracking Opt-Out",
-  100026: "Privacy Manager",
-  100034: "Do Not Track",
-  100043: "Usercentrics V1",
-  100044: "Usercentrics V2"
-}
-*/
