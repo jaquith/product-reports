@@ -294,10 +294,10 @@ reportHandler({
   useRequestCache: false,
   retryErrors: false,
   dropDB: true,
-  allAccounts: false, // 'true' disables the automatic filter to allow accurate account and profile counts
+  allAccounts: false // 'true' disables the automatic filter to allow accurate account and profile counts
   // accountList: ['1und1', 'pro7', 'abn-amro', 'tealium', 'royalmail']
   // accountList: ['abn-amro']
-  accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup', 'abn-amro']
+  // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup', 'abn-amro']
   // accountProfileList: [{ account: 'axelspringer', profile: 'ikiosk' }]
   // accountProfileList: [{ account: 'tealium-solutions', profile: 'test-example' }]
 })
@@ -500,7 +500,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       const audienceCount = Object.keys(cdhProfileData.audiences || {}).length
       const eventFeedCount = (cdhProfileData.archivedFilteredStreams && cdhProfileData.archivedFilteredStreams.length) || 0
       const eventSpecCount = (cdhProfileData.eventDefinitions && cdhProfileData.eventDefinitions.length) || 0
-      const connectorActionCount = Object.keys(activationSummary || {}).length
+      const connectorActionCount = Object.keys(activationSummary || {}).length
 
       const cdhRecord = {
         account,
