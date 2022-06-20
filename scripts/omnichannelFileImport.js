@@ -8,7 +8,7 @@ const {
   utils: { isEmpty }
 } = require('magic-metrics-tool')
 
-const [startDate, endDate] = getRollingDates(180)
+const [startDate, endDate] = getRollingDates(14)
 
 const profileChecker = async function checkProfile (
   { CDH, record, error, account, profile, profileData, resolve, reject, sessionRequest }) {
