@@ -214,7 +214,7 @@ function modelAttributeRelationships (cdhProfileData) {
       attributes[source].downstream_attributes[dest]++
     }
   }
-
+∂
   const audiences = Object.keys(cdhProfileData.audiences || {})
   for (let i = 0; i < audiences.length; i++) {
     const audienceId = audiences[i]
@@ -342,7 +342,7 @@ exports.summarizeActivations = function (cdhProfileData, attributeDetails) {
   Object.keys(profileData.audiences || {}).forEach((audienceId) => {
     const audienceInfo = profileData.audiences[audienceId]
     activations[audienceId] = {
-      type: 'audience_connector_action',
+      type: 'audience',
       logic: audienceInfo.logic,
       name: audienceInfo.name,
       visitor_retention_days: audienceInfo.visitorRetentionDays,
@@ -354,7 +354,7 @@ exports.summarizeActivations = function (cdhProfileData, attributeDetails) {
 
   profileData.archivedFilteredStreams && profileData.archivedFilteredStreams.forEach((feedInfo) => {
     activations[feedInfo.id] = {
-      type: 'event_connector_action',
+      type: 'event_feed',
       logic: feedInfo.logic,
       name: feedInfo.name,
       visitor_retention_days: undefined,
