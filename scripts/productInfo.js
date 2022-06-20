@@ -312,7 +312,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
     const cdhVolumes30Days = volumes.cdh['30days']
     const cdhVolumes180Days = volumes.cdh['180days']
 
-    const iqInProd = false // skip for now to save time and generate fewer CDN hits (false volume)
+    const iqInProd = true // record all for now
     const cdhInProd = true // record all for now
 
     if (iqInProd === true) {
