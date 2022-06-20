@@ -214,7 +214,7 @@ function modelAttributeRelationships (cdhProfileData) {
       attributes[source].downstream_attributes[dest]++
     }
   }
-∂
+
   const audiences = Object.keys(cdhProfileData.audiences || {})
   for (let i = 0; i < audiences.length; i++) {
     const audienceId = audiences[i]
