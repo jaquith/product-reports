@@ -8,6 +8,15 @@ const {
 const tealiumHelper = require('../helpers/tealium-helpers.js')
 const profileHelper = require('../helpers/profile-helpers.js')
 
+function boolToInt (theBool) {
+  if (theBool === 'true') return 1
+  if (theBool === 'false') return 0
+  if (typeof theBool !== 'boolean') {
+    return 0 // err on the side of false negatives
+  }
+  return theBool ? 1 : 0
+}
+
 async function getVolumes (account, profile, iQ, CDH) {
   function getIqDefaults () {
     return {
@@ -231,6 +240,22 @@ reportHandler({
       }
     },
     {
+      name: 'mobile_settings',
+      definition: {
+        enabled: DATABASE_TYPES.INTEGER,
+        battery_saver: DATABASE_TYPES.INTEGER,
+        dispatch_expiration: DATABASE_TYPES.INTEGER,
+        enable_collect: DATABASE_TYPES.INTEGER,
+        enable_s2s_legacy: DATABASE_TYPES.INTEGER,
+        enable_tag_management: DATABASE_TYPES.INTEGER,
+        event_batch_size: DATABASE_TYPES.INTEGER,
+        minutes_between_refresh: DATABASE_TYPES.INTEGER,
+        offline_dispatch_limit: DATABASE_TYPES.INTEGER,
+        override_log: DATABASE_TYPES.INTEGER,
+        wifi_only_sending: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
       name: 'all_products',
       definition: {
         product_name: DATABASE_TYPES.TEXT,
@@ -299,7 +324,7 @@ reportHandler({
   // accountList: ['abn-amro']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup', 'abn-amro']
   // accountProfileList: [{ account: 'axelspringer', profile: 'ikiosk' }]
-  // accountProfileList: [{ account: 'tealium-solutions', profile: 'test-example' }]
+  // accountProfileList: [{ account: 'tealium-solutions', profile: 'test-example' }, { account: 'hsbc', profile: 'global-rbwm-mobile-ios'}]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
@@ -367,6 +392,9 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       const extensionCounter = profileHelper.countActiveExtensionsByTemplateId(prodProfileData)
       const tagCounter = profileHelper.countActiveTagsByTemplateId(prodProfileData)
 
+      const mobilePublishing = profileHelper.checkForMobilePublishing(prodProfileData)
+      const mobileSettings = profileHelper.getMobileSettings(prodProfileData)
+
       const iqRecord = {
         account,
         profile,
@@ -388,7 +416,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         visit_30_days: iqVolumes30Days.visit,
         visit_180_days: iqVolumes180Days.visit,
 
-        mobile_publishing: profileHelper.checkForMobilePublishing(prodProfileData),
+        mobile_publishing: mobilePublishing,
         mobile_to_loader_ratio_30_days: (iqVolumes30Days.loader > 0 ? iqVolumes30Days.mobile / iqVolumes30Days.loader : 0).toFixed(2),
         mobile_to_loader_ratio_180_days: (iqVolumes180Days.loader > 0 ? iqVolumes180Days.mobile / iqVolumes180Days.loader : 0).toFixed(2),
 
@@ -421,6 +449,22 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       }
 
       record('iq_profiles', iqRecord)
+
+      record('mobile_settings', {
+        account,
+        profile,
+        enabled: boolToInt(mobileSettings._is_enabled),
+        battery_saver: boolToInt(mobileSettings.battery_saver),
+        dispatch_expiration: boolToInt(mobileSettings.dispatch_expiration),
+        enable_collect: boolToInt(mobileSettings.enable_collect),
+        enable_s2s_legacy: boolToInt(mobileSettings.enable_s2s_legacy),
+        enable_tag_management: boolToInt(mobileSettings.enable_tag_management),
+        event_batch_size: mobileSettings.event_batch_size,
+        minutes_between_refresh: mobileSettings.minutes_between_refresh,
+        offline_dispatch_limit: mobileSettings.offline_dispatch_limit,
+        override_log: mobileSettings.override_log,
+        wifi_only_sending: boolToInt(mobileSettings.wifi_only_sending)
+      })
 
       Object.keys(tagCounter).forEach(function (tagId) {
         // only generate entries for tag templates, not summary keys
@@ -484,13 +528,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         visitorRetentionDays,
         machineLearningEnabled
       } = cdhProfileData.settings
-
-      function boolToInt (theBool) {
-        if (typeof theBool !== 'boolean') {
-          return 0 // err on the side of false negatives
-        }
-        return theBool ? 1 : 0
-      }
 
       const attributeModel = profileHelper.modelAttributeRelationships(cdhProfileData)
       const activationSummaryAndAugumentedAttributeDetails = profileHelper.summarizeActivations(cdhProfileData, attributeModel)

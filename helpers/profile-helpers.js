@@ -587,6 +587,15 @@ exports.checkForMobilePublishing = function (profile) {
   return 0
 }
 
+exports.getMobileSettings = function (profile) {
+  if (!profile) return undefined
+  if (profile.publish && profile.publish._mobile && profile.publish._mobile['5'] && profile.publish._mobile['5']) return profile.publish._mobile['5']
+  return {
+    _is_enabled: false
+  }
+}
+
+
 exports.checkForCmpExtensionInUtag = function (utag) {
   const signatures = ['tealiumCmpIntegration']
   const utagString = utag && utag.contents && utag.contents.data
