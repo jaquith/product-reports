@@ -112,14 +112,7 @@ exports.countActiveTagsByTemplateId = function (profileData) {
       }
     }
   })
-  // to get an idea of how many tags customers are using
-
-  const justTagsNoTotals = JSON.parse(JSON.stringify(tagCounter))
-  delete justTagsNoTotals.total
-  delete justTagsNoTotals.total_from_library
-
   tagCounter.tag_template_count = Object.keys(tagCounter).length - 2 // subtract the total and library counter
-
   return tagCounter
 }
 
