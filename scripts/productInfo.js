@@ -137,7 +137,11 @@ reportHandler({
 
         tag_count_unique_templates: DATABASE_TYPES.INTEGER,
         tag_count_total: DATABASE_TYPES.INTEGER,
-        tag_count_from_library: DATABASE_TYPES.INTEGER
+        tag_count_from_library: DATABASE_TYPES.INTEGER,
+
+        custom_environment_setting: DATABASE_TYPES.TEXT,
+        custom_environment_count: DATABASE_TYPES.INTEGER,
+        custom_environment_list: DATABASE_TYPES.TEXT
 
         // iab_tcf_2: DATABASE_TYPES.INTEGER,
 
@@ -146,7 +150,7 @@ reportHandler({
       }
     },
     {
-      name: 'tiq_extensions_in_production',
+      name: 'iq_extensions',
       definition: {
         // standard data
         extension_name: DATABASE_TYPES.TEXT,
@@ -216,6 +220,30 @@ reportHandler({
       }
     },
     {
+      name: 'iq_attributes',
+      definition: {
+        name: DATABASE_TYPES.TEXT,
+        id: DATABASE_TYPES.TEXT,
+        description: DATABASE_TYPES.TEXT,
+        type: DATABASE_TYPES.TEXT,
+        is_preloaded: DATABASE_TYPES.INTEGER,
+        mapping_references: DATABASE_TYPES.INTEGER,
+        extension_references: DATABASE_TYPES.INTEGER,
+        load_rule_references: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
+      name: 'iq_load_rules',
+      definition: {
+        name: DATABASE_TYPES.TEXT,
+        id: DATABASE_TYPES.TEXT,
+        logic: DATABASE_TYPES.TEXT,
+        from_library: DATABASE_TYPES.INTEGER,
+        active_tag_count: DATABASE_TYPES.INTEGER,
+        inactive_tag_count: DATABASE_TYPES.INTEGER
+      }
+    },
+    {
       name: 'account_and_profile_types',
       definition: {
         account_type: DATABASE_TYPES.TEXT,
@@ -223,7 +251,7 @@ reportHandler({
       }
     },
     {
-      name: 'cdh_attributes_in_production_detailed',
+      name: 'cdh_attributes',
       definition: {
         name: DATABASE_TYPES.TEXT,
         id: DATABASE_TYPES.TEXT,
@@ -266,7 +294,7 @@ reportHandler({
       }
     },
     {
-      name: 'activations',
+      name: 'event_feeds_and_audiences',
       definition: {
         id: DATABASE_TYPES.TEXT,
         name: DATABASE_TYPES.TEXT,
@@ -280,7 +308,7 @@ reportHandler({
       }
     },
     {
-      name: 'tag_templates_in_production',
+      name: 'tag_templates',
       definition: {
         template_name: DATABASE_TYPES.TEXT,
         template_id: DATABASE_TYPES.INTEGER,
@@ -289,7 +317,7 @@ reportHandler({
       }
     },
     {
-      name: 'cdh_attributes_in_production',
+      name: 'cdh_attribute_summary',
       definition: {
         context: DATABASE_TYPES.TEXT,
         type: DATABASE_TYPES.TEXT,
@@ -304,7 +332,7 @@ reportHandler({
       }
     },
     {
-      name: 'cdh_connector_actions_and_triggers_in_production',
+      name: 'cdh_connector_actions_and_triggers',
       definition: {
         connector_type: DATABASE_TYPES.TEXT,
         action_type: DATABASE_TYPES.TEXT,
@@ -324,7 +352,7 @@ reportHandler({
   // accountList: ['abn-amro']
   // accountList: ['pro7', 'deutschebahn', 'bahnx', 'axelspringer', 'mbcc-group', 'al-h', 'immoweltgroup', 'abn-amro']
   // accountProfileList: [{ account: 'axelspringer', profile: 'ikiosk' }]
-  // accountProfileList: [{ account: 'tealium-solutions', profile: 'test-example' }, { account: 'hsbc', profile: 'global-rbwm-mobile-ios'}]
+  // accountProfileList: [{ account: 'services-caleb', profile: 'main' }]
 })
 
 async function profileChecker ({ iQ, CDH, record, error, account, profile, sessionRequest, resolve, reject }) {
@@ -392,8 +420,16 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       const extensionCounter = profileHelper.countActiveExtensionsByTemplateId(prodProfileData)
       const tagCounter = profileHelper.countActiveTagsByTemplateId(prodProfileData)
 
+      const tiqSummaries = profileHelper.getTiqSummaries(prodProfileData)
+      const tiqAttributes = tiqSummaries.attributes
+      // const tiqLoadRules = tiqSummaries.loadRules
+
       const mobilePublishing = profileHelper.checkForMobilePublishing(prodProfileData)
       const mobileSettings = profileHelper.getMobileSettings(prodProfileData)
+
+      const customEnvironments = Object.keys((prodProfileData.publish && prodProfileData.publish.smartFTP) || []).filter((environmentName) => {
+        return ['dev', 'qa', 'prod'].indexOf(environmentName) === -1
+      })
 
       const iqRecord = {
         account,
@@ -445,10 +481,30 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
         tag_count_unique_templates: tagCounter.tag_template_count,
         tag_count_total: tagCounter.total,
-        tag_count_from_library: tagCounter.total_from_library
+        tag_count_from_library: tagCounter.total_from_library,
+
+        custom_environment_setting: prodProfileData.publish.enable_custom_targets || '',
+        custom_environment_count: customEnvironments.length,
+        custom_environment_list: customEnvironments.join(',')
       }
 
       record('iq_profiles', iqRecord)
+
+      tiqAttributes.forEach((attr) => {
+        if (!attr || !attr._id) return
+        record('iq_attributes', {
+          account,
+          profile,
+          name: attr.name,
+          id: attr._id,
+          description: attr.description,
+          type: attr.type,
+          is_preloaded: boolToInt(attr.is_preloaded),
+          mapping_references: attr.mapping_references,
+          extension_references: attr.extension_references,
+          load_rule_references: attr.load_rule_references
+        })
+      })
 
       record('mobile_settings', {
         account,
@@ -470,7 +526,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         // only generate entries for tag templates, not summary keys
         const nonTagKeys = ['total_from_library', 'total', 'tag_template_count']
         if (nonTagKeys.indexOf(tagId) !== -1) return
-        record('tag_templates_in_production', {
+        record('tag_templates', {
           account,
           profile,
           template_name: tagCounter[tagId].name,
@@ -484,7 +540,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         // only generate entries for tag templates, not summary keys
         const totals = ['total_from_library', 'total']
         if (totals.indexOf(id) !== -1) return
-        record('tiq_extensions_in_production', {
+        record('iq_extensions', {
           account,
           profile,
           extension_name: extensionCounter[id].name,
@@ -602,7 +658,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       record('cdh_profiles', cdhRecord)
 
       Object.keys(activationSummary).forEach((id) => {
-        record('activations', {
+        record('event_feeds_and_audiences', {
           account,
           profile,
           id: id,
@@ -619,7 +675,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       })
 
       Object.keys(attributeDetails).forEach(function (key) {
-        record('cdh_attributes_in_production_detailed', {
+        record('cdh_attributes', {
           account,
           profile,
           name: attributeDetails[key].name,
@@ -639,7 +695,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
       const attributeSummary = profileHelper.summarizeAttributes(cdhProfileData)
       Object.keys(attributeSummary).forEach(function (key) {
-        record('cdh_attributes_in_production', {
+        record('cdh_attribute_summary', {
           account,
           profile,
           context: attributeSummary[key].context,
@@ -659,7 +715,7 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
       Object.keys(connectorActionSummary).forEach(function (connectorType) {
         Object.keys(connectorActionSummary[connectorType].action_counts).forEach(function (action) {
           Object.keys(connectorActionSummary[connectorType].action_counts[action]).forEach(function (trigger) {
-            record('cdh_connector_actions_and_triggers_in_production', {
+            record('cdh_connector_actions_and_triggers', {
               account,
               profile,
               connector_type: connectorType,
@@ -745,6 +801,6 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
 
     resolve()
   } catch (e) {
-    reject(e)
+    reject(e.stack)
   }
 }

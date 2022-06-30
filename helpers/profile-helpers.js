@@ -88,6 +88,91 @@ exports.checkForIabTcf2 = function (utag) {
   return 0
 }
 
+exports.getTiqSummaries = function (iqProfileData) {
+  const attributes = Object.values(iqProfileData.define || {})
+
+  const loadRules = Object.values(iqProfileData.loadrules || {})
+  const extensions = Object.values(iqProfileData.customizations || {})
+  const tags = Object.values(iqProfileData.manage || {})
+
+  const loadRuleLookup = {}
+  const attributeLookup = {}
+  const extensionLookup = {}
+  // const mappingLookup = {}
+
+  loadRules.forEach((rule) => {
+    if (rule.status !== 'active') return // skip inactive
+    loadRuleLookup[rule._id] = {}
+    loadRuleLookup[rule._id].attributes = {}
+    loadRuleLookup[rule._id].name = rule.title
+    loadRuleLookup[rule._id].logic = rule[0]
+    loadRuleLookup[rule._id].from_library = !!rule.editable
+    const ruleLogic = rule['0']
+    Object.keys(ruleLogic || {}).forEach((key) => {
+      if (/^input_/.test(key)) {
+        const attributeName = ruleLogic[key]
+        loadRuleLookup[rule._id].attributes[attributeName] = true
+        attributeLookup[attributeName] = attributeLookup[attributeName] || {}
+        attributeLookup[attributeName].rules = attributeLookup[attributeName].rules || {}
+        attributeLookup[attributeName].rules[rule._id] = true
+      }
+    })
+  })
+
+  extensions.forEach(ext => {
+    extensionLookup[ext._id] = {}
+    extensionLookup[ext._id].id = ext._id
+    extensionLookup[ext._id].type = ext.extType
+    extensionLookup[ext._id].extension_id = ext.id
+    extensionLookup[ext._id].is_active = ext.status === 'active'
+    extensionLookup[ext._id].on_prod = ext.selectedTargets && ext.selectedTargets.prod
+    extensionLookup[ext._id].attributes = {}
+
+    Object.keys(ext || {}).forEach(key => {
+      if (/_set$/.test(key) || /_source$/.test(key) || key === 'var' || key === 'varlookup') {
+        const fullName = ext[key]
+        extensionLookup[ext._id].attributes[fullName] = extensionLookup[ext._id].attributes[fullName] || 0
+        extensionLookup[ext._id].attributes[fullName]++
+        attributeLookup[fullName] = attributeLookup[fullName] || {}
+        attributeLookup[fullName].extensions = (attributeLookup[fullName].extensions) || {}
+        attributeLookup[fullName].extensions[ext._id] = attributeLookup[fullName].extensions[ext._id] || 0
+        attributeLookup[fullName].extensions[ext._id]++
+      }
+      /* if (ext.code) extensionLookup[ext._id].code = ext.code
+      if (ext.extType === 'Advanced Javascript Code') {
+        let prodSnippet = Object.values(ext.codeDevData.promotedSnippets).filter(val => val.name === 'prod')
+        extensionLookup[ext._id].code = prodSnippet[0].code || ''
+      } */
+    })
+  })
+
+  tags.forEach((tag) => {
+    if (typeof tag.map === 'object' && tag.status === 'active' && tag.selectedTargets && tag.selectedTargets.prod === 'true') {
+      Object.values(tag.map).forEach(mapping => {
+        const fullName = `${mapping.type}.${mapping.key}`
+        attributeLookup[fullName] = attributeLookup[fullName] || {}
+        attributeLookup[fullName].mappings = (attributeLookup[fullName].mappings) || {}
+        attributeLookup[fullName].mappings[tag._id] = attributeLookup[fullName].mappings[tag._id] || 0
+        attributeLookup[fullName].mappings[tag._id]++
+      })
+    }
+  })
+
+  attributes.forEach((attr, i, arr) => {
+    const attributeName = `${attr.type}.${attr.name}`
+    arr[i].is_preloaded = ['dom.viewport_height', 'dom.viewport_width', 'dom.title', 'dom.domain', 'dom.hash', 'dom.pathname', 'dom.query_string', 'dom.referrer', 'dom.url'].indexOf(attr.name) !== -1 || attr.type === 'va'
+    arr[i].mapping_references = Object.keys((attributeLookup[attributeName] && attributeLookup[attributeName].mappings) || {}).length
+    arr[i].extension_references = Object.keys((attributeLookup[attributeName] && attributeLookup[attributeName].extensions) || {}).length
+    arr[i].load_rule_references = Object.keys(attributeLookup[attributeName] || []).length
+  })
+
+  return {
+    attributes: attributes,
+    loadRules: loadRuleLookup,
+    extensions: extensionLookup
+  }
+}
+
 exports.countActiveTagsByTemplateId = function (profileData) {
   const allTagIds = Object.keys(profileData.manage || {})
   const tagCounter = {}
@@ -384,7 +469,7 @@ exports.summarizeActivations = function (cdhProfileData, attributeDetails) {
     if (action.enabled === true && isParentConnectorEnabled(cdhProfileData.connectors, action.connectorId) === true) {
       actionLookup[key][action.type][action.trigger].count_enabled++
       action.source && activations[action.source.id] && activations[action.source.id].active_connector_actions.push(action.id)
-      Object.keys(action.configurations.prod.parameters).forEach((sectionId) => {
+      Object.keys((action.configuration && action.configurations.prod && action.configurations.prod.parameters) || {}).forEach((sectionId) => {
         const section = action.configurations.prod.parameters[sectionId]
         Object.keys(section.values).forEach((valueId) => {
           // find variables that should be resolved (not hardcoded) - these are the mappings
@@ -587,7 +672,6 @@ exports.getMobileSettings = function (profile) {
     _is_enabled: false
   }
 }
-
 
 exports.checkForCmpExtensionInUtag = function (utag) {
   const signatures = ['tealiumCmpIntegration']
