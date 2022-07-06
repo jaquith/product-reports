@@ -556,8 +556,8 @@ async function profileChecker ({ iQ, CDH, record, error, account, profile, sessi
         product_name: 'Tealium iQ',
         retention_days: undefined,
         enabled: 1,
-        volume_30_days: iqVolumes30Days.loader > iqVolumes30Days.mobile ? iqVolumes30Days.loader : iqVolumes30Days.mobile,
-        volume_180_days: iqVolumes180Days.loader > iqVolumes180Days.mobile ? iqVolumes180Days.loader : iqVolumes180Days.mobile
+        volume_30_days: iqVolumes30Days.visit,
+        volume_180_days: iqVolumes180Days.visit
       })
     }
 
